@@ -109,5 +109,4 @@ mymap =
                 (Pair (Call (Var "f") (Fst (Var "xs"))) 
                       (Call (Call (Var "_map") (Var "f")) (Snd (Var "xs")))))))
 
---main = putStrLn $ show $ eval (Call (Call mymap (Fun "" "x" (Add (Var "x") (Number 1)))) (Pair (Number 10) (Pair (Number 20) Unit))) []
 main = putStrLn $ show $ eval (Eq (Number 10) (Number 10)) []
