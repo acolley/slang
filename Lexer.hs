@@ -1,4 +1,4 @@
-module Lexer ( Token(LParn,RParn,Num,Sym), lexer) where
+module Lexer ( Token(LParn,RParn,Num,Sym), lexer ) where
 
 import Data.Char
 

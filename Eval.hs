@@ -1,24 +1,6 @@
-data Expr = 
-    Unit
-    | Number Int
-    | Boolean Bool
-    | Pair Expr Expr
-    | Fst Expr
-    | Snd Expr
-    | Add Expr Expr
-    | If Expr Expr Expr
-    | Var String
-    | Let String Expr Expr -- bind the result of first expr to the given string
-    | Fun String String Expr -- empty string for name means anonymous Fun
-    | Closure Env String String Expr -- holds an Env and a Fun
-    | Call Expr Expr
-    | IsUnit Expr
-    | Gt Expr Expr
-    | Lt Expr Expr
-    | Eq Expr Expr
-    deriving (Show)
+module Eval (eval) where
 
-type Env = [(String, Expr)]
+import Parser
 
 -- having an environment represented with a list of (String, Expr) pairs
 -- automatically achieves 'shadowing' for bound variables if you add and
@@ -27,78 +9,81 @@ envlookup :: String -> Env -> Maybe Expr
 envlookup _ []   = Nothing
 envlookup s ((v, e):xs) = if s == v then Just e else (envlookup s xs)
 
-eval :: Expr -> Env -> Either String Expr
-eval Unit _ = Right Unit
-eval (Number i) _  = Right (Number i)
-eval (Boolean b) _ = Right (Boolean b)
-eval (Pair e1 e2) env =
-    case (eval e1 env, eval e2 env) of
+evalenv :: Expr -> Env -> Either String Expr
+evalenv Unit _ = Right Unit
+evalenv (Number i) _  = Right (Number i)
+evalenv (Boolean b) _ = Right (Boolean b)
+evalenv (Pair e1 e2) env =
+    case (evalenv e1 env, evalenv e2 env) of
         (Right v1, Right v2) -> Right (Pair v1 v2)
         (Left err, _) -> Left err
         (_, Left err) -> Left err
-eval (Fst e) env =
-    case eval e env of
+evalenv (Fst e) env =
+    case evalenv e env of
         Right (Pair e1 _) -> Right e1
         Left err -> Left err
         _ -> Left "Fst got something that isn't a Pair"
-eval (Snd e) env =
-    case eval e env of
+evalenv (Snd e) env =
+    case evalenv e env of
         Right (Pair _ e2) -> Right e2
         Left err -> Left err
         _ -> Left "Snd got something that isn't a Pair"
-eval (Add e1 e2) env = 
-    case (eval e1 env, eval e2 env) of
+evalenv (Add e1 e2) env = 
+    case (evalenv e1 env, evalenv e2 env) of
         (Right (Number v1), Right (Number v2)) -> Right (Number (v1 + v2))
         (Left err, _) -> Left err
         (_, Left err) -> Left err
         _ -> Left "Non-number used in Add"
-eval (If e1 e2 e3) env = 
-    case (eval e1 env) of
-        Right (Boolean b) -> if b then (eval e2 env) else (eval e3 env)
+evalenv (If e1 e2 e3) env = 
+    case (evalenv e1 env) of
+        Right (Boolean b) -> if b then (evalenv e2 env) else (evalenv e3 env)
         Left err -> Left err
         _ -> Left "Non-boolean used as If predicate"
-eval (Var s) env =
+evalenv (Var s) env =
     case (envlookup s env) of
         Just e -> Right e
         Nothing -> Left "Unbound variable name"
-eval (Let s e1 e2) env =
-    case eval e1 env of
-        Right v -> eval e2 ((s, v):env) -- eval e2 in the augmented environment containing 's'
+evalenv (Let s e1 e2) env =
+    case evalenv e1 env of
+        Right v -> evalenv e2 ((s, v):env) -- eval e2 in the augmented environment containing 's'
         Left err -> Left err
-eval (Fun name arg body) env = Right (Closure env name arg body)
-eval (Closure env name arg body) _ = Right (Closure env name arg body)
-eval (Call e1 e2) env =
-    case (eval e1 env, eval e2 env) of
+evalenv (Fun name arg body) env = Right (Closure env name arg body)
+evalenv (Closure env name arg body) _ = Right (Closure env name arg body)
+evalenv (Call e1 e2) env =
+    case (evalenv e1 env, evalenv e2 env) of
         (Right (Closure cenv name arg body), Right val) ->
             let newenv = if name == "" then (arg, val):cenv
                          else (name, Closure cenv name arg body):(arg, val):cenv
-            in eval body newenv
+            in evalenv body newenv
         (Left err, _) -> Left err
         (_, Left err) -> Left err
         (Right e, _) -> Left ("Call received something that wasn't a Closure: " ++ show e)
-eval (IsUnit e) env =
-    case eval e env of
+evalenv (IsUnit e) env =
+    case evalenv e env of
         Right Unit -> Right (Boolean True)
         Right _ -> Right (Boolean False)
         Left err -> Left err
-eval (Gt e1 e2) env =
-    case (eval e1 env, eval e2 env) of
+evalenv (Gt e1 e2) env =
+    case (evalenv e1 env, evalenv e2 env) of
         (Right (Number v1), Right (Number v2)) -> Right (Boolean (v1 > v2))
         (Left err, _) -> Left err
         (_, Left err) -> Left err
         (_, _) -> Left ("Gt received something that wasn't a Number")
-eval (Lt e1 e2) env =
-    case (eval e1 env, eval e2 env) of
+evalenv (Lt e1 e2) env =
+    case (evalenv e1 env, evalenv e2 env) of
         (Right (Number v1), Right (Number v2)) -> Right (Boolean (v1 < v2))
         (Left err, _) -> Left err
         (_, Left err) -> Left err
         (_, _) -> Left ("Lt received something that wasn't a Number")
-eval (Eq e1 e2) env =
-    case (eval e1 env, eval e2 env) of
+evalenv (Eq e1 e2) env =
+    case (evalenv e1 env, evalenv e2 env) of
         (Right (Number v1), Right (Number v2)) -> Right (Boolean (v1 == v2))
         (Left err, _) -> Left err
         (_, Left err) -> Left err
         (_, _) -> Left ("Eq received something that wasn't a Number")
+
+eval :: Expr -> Either String Expr
+eval expr = evalenv expr []
 
 mymap :: Expr
 mymap = 
@@ -109,4 +94,4 @@ mymap =
                 (Pair (Call (Var "f") (Fst (Var "xs"))) 
                       (Call (Call (Var "_map") (Var "f")) (Snd (Var "xs")))))))
 
-main = putStrLn $ show $ eval (Eq (Number 10) (Number 10)) []
+main = putStrLn $ show $ eval (Eq (Number 10) (Number 10))
