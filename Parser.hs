@@ -62,7 +62,7 @@ parseExpr (Num v:toks) = Right (Number v, toks)
 parseExpr (Sym s:toks) = parseSymbol (Sym s:toks)
 parseExpr (LParn:toks) =
     case peek toks of
-        Just (Sym s) -> parseSymbol (Sym s:toks) -- parseSymbol consumes next token
+        Just (Sym s) -> parseSymbol toks
         Just LParn -> parseExpr toks
         Just tok -> Left ("Expected LParn or Symbol but received: " ++ (show tok))
         Nothing -> Left "Unexpected EOF"
@@ -82,4 +82,4 @@ parse toks = parseExpr toks
 --    in case next of
 --        (Sym s)
 
-main = putStrLn $ show $ parseExpr [LParn, Num 10]
+main = putStrLn $ show $ parseExpr [LParn, Sym "tits"]
