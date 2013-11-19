@@ -8,9 +8,9 @@
 -- be syntactically correct, otherwise produce an error
 
 module Parser (
-    Expr(Unit, Number, Boolean, Pair, Fst, Snd, Add, Mul, If, Var, Let, Fun, Closure, Call, IsUnit, Gt, Lt, Eq),
+    Expr(Unit, Number, Boolean, Pair, Fst, Snd, Add, Sub, Mul, Div, If, Var, Let, Fun, Closure, Call, IsUnit, Gt, Lt, Eq),
     Env, 
-    parse) 
+    parse, parseAdd) 
 where
 
 import Lexer
@@ -23,7 +23,9 @@ data Expr =
     | Fst Expr
     | Snd Expr
     | Add Expr Expr
+    | Sub Expr Expr
     | Mul Expr Expr
+    | Div Expr Expr
     | If Expr Expr Expr
     | Var String
     | Let String Expr Expr -- bind the result of first expr to the given string
@@ -44,48 +46,51 @@ peek (tok:_) = Just tok
 
 -- parsePair :: [Token] -> Either String (Expr, [Token])
 
--- parses a list of args, returning a cons Pair or Unit
--- for no arguments
---parseArgs :: [Token] -> Either String (Expr, [Token])
---parseArgs (RParn:toks) = Right (Unit, toks)
---parseArgs toks =
---    case parseExpr toks of
---        Right (e, toks1) -> Right (Pair e (parseArgs toks1))
---        Left s -> Left s
-
--- should produce an expression with nested pairs for the Mul expression
--- e.g. these are functionally the same (the first is sugar for the second):
--- (* 10 20)
--- (* (cons 10 (cons (20 null)))) (where null = Unit)
---parseMul :: [Token] -> Either String (Expr, [Token])
---parseMul toks =
---    case parseArgs toks of
---        Right (pair, rest) -> Right (Mul pair, rest)
---        Left s -> Left s
-
--- for multiple arguments in parseMul, second expression should be
--- a nested multiply with the other arguments?
--- e.g. (* 1 2 3 4) = (* 1 (* 2 (* 3 4))) (this appears to be how common Lisp does it)
-
--- take in an Expr to be applied to each pair of Tokens and
--- return an error String or the new nested Expr with the remaining Tokens
-parseArgs :: Expr :: [Token] -> Either String (Expr, [Token])
-parseArgs RParn:toks = 
+-- Return the list of Exprs terminated by an RParn
+-- in the given Token list
+parseArgs :: [Token] -> Either String ([Expr], [Token])
+parseArgs (RParn:toks) = Right ([], toks)
+parseArgs toks =
+    case parseExpr toks of
+        Right (e, toks1) -> case parseArgs toks1 of
+                                Right (es, toks2) -> Right (e:es, toks2)
+                                Left s -> Left s
+        Left s -> Left s
 
 parseMul :: [Token] -> Either String (Expr, [Token])
 parseMul toks =
-    case parseExpr toks of
-        Right (e1, toks1) -> case parseExpr toks1 of
-                                 Right (e2, toks2) -> Right (Mul e1 e2, toks2)
-                                 Left s -> Left s
+    case parseArgs toks of
+        Right (args, rest) -> case args of
+                                  a:b:xs -> Right (foldl (\(Mul x y) z -> Mul (Mul x y) z) (Mul a b) xs, rest)
+                                  a:[] -> Right (Mul a Unit, rest)
+                                  _ -> Left "Mul takes at least one argument"
+        Left s -> Left s
+
+parseDiv :: [Token] -> Either String (Expr, [Token])
+parseDiv toks =
+    case parseArgs toks of
+        Right (args, rest) -> case args of
+                                  a:b:xs -> Right (foldl (\(Div x y) z -> Div (Div x y) z) (Div a b) xs, rest)
+                                  a:[] -> Right (Div a Unit, rest)
+                                  _ -> Left "Div takes at least one argument"
         Left s -> Left s
 
 parseAdd :: [Token] -> Either String (Expr, [Token])
 parseAdd toks =
-    case parseExpr toks of
-        Right (e1, toks1) -> case parseExpr toks1 of
-                                 Right (e2, toks2) -> Right (Add e1 e2, toks2)
-                                 Left s -> Left s
+    case parseArgs toks of
+        Right (args, rest) -> case args of
+                                  a:b:xs -> Right (foldl (\(Add x y) z -> Add (Add x y) z) (Add a b) xs, rest) -- add needs two arguments (could change to one in future)
+                                  a:[] -> Right (Add a Unit, rest)
+                                  _ -> Left "Add takes at least one argument"
+        Left s -> Left s
+
+parseSub :: [Token] -> Either String (Expr, [Token])
+parseSub toks =
+    case parseArgs toks of
+        Right (args, rest) -> case args of
+                                  a:b:xs -> Right (foldl (\(Sub x y) z -> Sub (Sub x y) z) (Sub a b) xs, rest) -- add needs two arguments (could change to one in future)
+                                  a:[] -> Right (Sub a Unit, rest)
+                                  _ -> Left "Sub takes at least one argument"
         Left s -> Left s
 
 -- Since we don't know if the Symbol is a special keyword
@@ -100,14 +105,16 @@ parseSymbol (Sym s:toks) =
         -- "fst"
         -- "snd"
         "+" -> parseAdd toks -- consume '+' Symbol token, TODO: have this as a 'global' scope function?
+        "-" -> parseSub toks
         "*" -> parseMul toks -- consume '*' Symbol token
+        "/" -> parseDiv toks
         _ -> Right (Var s, toks)
 parseSymbol (tok:_) = Left ("Expected Symbol but received: " ++ (show tok))
 
 parseExpr :: [Token] -> Either String (Expr, [Token])
 parseExpr [] = Left "Unexpected EOF"
 parseExpr (Num v:toks) = Right (Number v, toks)
-parseExpr (Sym s:toks) = parseSymbol (Sym s:toks)
+parseExpr (Sym s:toks) = Right (Var s, toks)
 parseExpr (LParn:toks) =
     case peek toks of
         Just (Sym s) -> parseSymbol toks
@@ -121,15 +128,5 @@ parse :: [Token] -> Either String Expr
 parse toks = case parseExpr toks of
                  Right (expr, _) -> Right expr
                  Left s -> Left s
-
---parse :: [Token] -> Either Expr
---parse toks = parseExpr toks
---parse [] = Left "Unexpected EOF"
---parse (Num v):toks = (Number v):parse toks
---parse (Sym s):toks = (Var s):parse toks
---parse LParn:toks = 
---    let next = peek toks
---    in case next of
---        (Sym s)
 
 main = putStrLn $ show $ parseExpr [LParn, Sym "+", Num 10, Num 10, RParn]

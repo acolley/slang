@@ -31,15 +31,31 @@ evalenv (Snd e) env =
 evalenv (Add e1 e2) env = 
     case (evalenv e1 env, evalenv e2 env) of
         (Right (Number v1), Right (Number v2)) -> Right (Number (v1 + v2))
+        (Right (Number v1), Right Unit) -> Right (Number v1)
         (Left err, _) -> Left err
         (_, Left err) -> Left err
         _ -> Left "Non-number used in Add"
+evalenv (Sub e1 e2) env =
+    case (evalenv e1 env, evalenv e2 env) of
+        (Right (Number v1), Right (Number v2)) -> Right (Number (v1 - v2))
+        (Right (Number v1), Right Unit) -> Right (Number (-v1))
+        (Left err, _) -> Left err
+        (_, Left err) -> Left err
+        _ -> Left "Non-number used in Sub"
 evalenv (Mul e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
         (Right (Number v1), Right (Number v2)) -> Right (Number (v1 * v2))
+        (Right (Number v1), Right Unit) -> Right (Number v1)
         (Left err, _) -> Left err
         (_, Left err) -> Left err
         _ -> Left "Non-number used in Mul"
+evalenv (Div e1 e2) env =
+    case (evalenv e1 env, evalenv e2 env) of
+        (Right (Number v1), Right (Number v2)) -> Right (Number (v1 `div` v2))
+        (Right (Number v1), Right Unit) -> Right (Number v1)
+        (Left err, _) -> Left err
+        (_, Left err) -> Left err
+        _ -> Left "Non-number used in Div"
 evalenv (If e1 e2 e3) env = 
     case (evalenv e1 env) of
         Right (Boolean b) -> if b then (evalenv e2 env) else (evalenv e3 env)
@@ -90,6 +106,10 @@ evalenv (Eq e1 e2) env =
 
 eval :: Expr -> Either String Expr
 eval expr = evalenv expr []
+
+-- TODO: Need some way to support variable numbers of arguments
+--slang_add :: Expr
+--slang_add = (Fun "" "x")
 
 mymap :: Expr
 mymap = 
