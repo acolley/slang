@@ -34,6 +34,12 @@ evalenv (Add e1 e2) env =
         (Left err, _) -> Left err
         (_, Left err) -> Left err
         _ -> Left "Non-number used in Add"
+evalenv (Mul e1 e2) env =
+    case (evalenv e1 env, evalenv e2 env) of
+        (Right (Number v1), Right (Number v2)) -> Right (Number (v1 * v2))
+        (Left err, _) -> Left err
+        (_, Left err) -> Left err
+        _ -> Left "Non-number used in Mul"
 evalenv (If e1 e2 e3) env = 
     case (evalenv e1 env) of
         Right (Boolean b) -> if b then (evalenv e2 env) else (evalenv e3 env)

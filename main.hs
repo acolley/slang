@@ -8,5 +8,5 @@ ext :: (Expr -> Either String Expr) -> Either String Expr -> Either String Expr
 ext f (Left s) = Left s
 ext f (Right expr) = f expr
 
--- main = putStrLn $ show (ext eval (parse $ lexer "10"))
-main = putStrLn $ show $ parse $ lexer "(tits)"
+-- main = putStrLn $ show $ lexer "(+ 20 20)"
+main = putStrLn $ show $ parse $ lexer "(* 20 20)"
