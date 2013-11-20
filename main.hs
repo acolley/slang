@@ -8,9 +8,9 @@ import Eval
 import Utils
 
 -- extract
-ext :: (Expr -> Either String Expr) -> Either String Expr -> Either String Expr
-ext f (Left s) = Left s
-ext f (Right expr) = f expr
+ext :: (Expr -> Result Expr) -> Result Expr -> Result Expr
+ext f (Err s) = Err s
+ext f (Ok expr) = f expr
 
 -- main = putStrLn $ show $ lexer "(+ 20 20)"
 --main = putStrLn $ show $ parseArgs [Num 10, Num 20, Num 30, Num 40, Sym "Poo", RParn]
@@ -23,8 +23,8 @@ parseArgs [] = putStrLn "No arguments given"
 parseArgs (arg:args) =
     case lexer arg of
         Ok toks -> case eval `ext` (parse toks) of
-                       Right e -> putStrLn $ show e
-                       Left err -> putStrLn ("Error: " ++ err)
+                       Ok e -> putStrLn $ show e
+                       Err s -> putStrLn ("Error: " ++ s)
         Err s -> putStrLn ("Error: " ++ s)
 
 main = do

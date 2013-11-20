@@ -15,6 +15,8 @@ where
 
 import Lexer
 
+import Utils
+
 data Expr = 
     Unit
     | Number Int
@@ -48,50 +50,50 @@ peek (tok:_) = Just tok
 
 -- Return the list of Exprs terminated by an RParn
 -- in the given Token list
-parseArgs :: [Token] -> Either String ([Expr], [Token])
-parseArgs (RParn:toks) = Right ([], toks)
+parseArgs :: [Token] -> Result ([Expr], [Token])
+parseArgs (RParn:toks) = Ok ([], toks)
 parseArgs toks =
     case parseExpr toks of
-        Right (e, toks1) -> case parseArgs toks1 of
-                                Right (es, toks2) -> Right (e:es, toks2)
-                                Left s -> Left s
-        Left s -> Left s
+        Ok (e, toks1) -> case parseArgs toks1 of
+                             Ok (es, toks2) -> Ok (e:es, toks2)
+                             Err s -> Err s
+        Err s -> Err s
 
-parseMul :: [Token] -> Either String (Expr, [Token])
+parseMul :: [Token] -> Result (Expr, [Token])
 parseMul toks =
     case parseArgs toks of
-        Right (args, rest) -> case args of
-                                  a:b:xs -> Right (foldl (\(Mul x y) z -> Mul (Mul x y) z) (Mul a b) xs, rest)
-                                  a:[] -> Right (Mul a Unit, rest)
-                                  _ -> Left "Mul takes at least one argument"
-        Left s -> Left s
+        Ok (args, rest) -> case args of
+                               a:b:xs -> Ok (foldl (\(Mul x y) z -> Mul (Mul x y) z) (Mul a b) xs, rest)
+                               a:[] -> Ok (Mul a Unit, rest)
+                               _ -> Err "Mul takes at least one argument"
+        Err s -> Err s
 
-parseDiv :: [Token] -> Either String (Expr, [Token])
+parseDiv :: [Token] -> Result (Expr, [Token])
 parseDiv toks =
     case parseArgs toks of
-        Right (args, rest) -> case args of
-                                  a:b:xs -> Right (foldl (\(Div x y) z -> Div (Div x y) z) (Div a b) xs, rest)
-                                  a:[] -> Right (Div a Unit, rest)
-                                  _ -> Left "Div takes at least one argument"
-        Left s -> Left s
+        Ok (args, rest) -> case args of
+                               a:b:xs -> Ok (foldl (\(Div x y) z -> Div (Div x y) z) (Div a b) xs, rest)
+                               a:[] -> Ok (Div a Unit, rest)
+                               _ -> Err "Div takes at least one argument"
+        Err s -> Err s
 
-parseAdd :: [Token] -> Either String (Expr, [Token])
+parseAdd :: [Token] -> Result (Expr, [Token])
 parseAdd toks =
     case parseArgs toks of
-        Right (args, rest) -> case args of
-                                  a:b:xs -> Right (foldl (\(Add x y) z -> Add (Add x y) z) (Add a b) xs, rest)
-                                  a:[] -> Right (Add a Unit, rest)
-                                  _ -> Left "Add takes at least one argument"
-        Left s -> Left s
+        Ok (args, rest) -> case args of
+                               a:b:xs -> Ok (foldl (\(Add x y) z -> Add (Add x y) z) (Add a b) xs, rest)
+                               a:[] -> Ok (Add a Unit, rest)
+                               _ -> Err "Add takes at least one argument"
+        Err s -> Err s
 
-parseSub :: [Token] -> Either String (Expr, [Token])
+parseSub :: [Token] -> Result (Expr, [Token])
 parseSub toks =
     case parseArgs toks of
-        Right (args, rest) -> case args of
-                                  a:b:xs -> Right (foldl (\(Sub x y) z -> Sub (Sub x y) z) (Sub a b) xs, rest)
-                                  a:[] -> Right (Sub a Unit, rest)
-                                  _ -> Left "Sub takes at least one argument"
-        Left s -> Left s
+        Ok (args, rest) -> case args of
+                               a:b:xs -> Ok (foldl (\(Sub x y) z -> Sub (Sub x y) z) (Sub a b) xs, rest)
+                               a:[] -> Ok (Sub a Unit, rest)
+                               _ -> Err "Sub takes at least one argument"
+        Err s -> Err s
 
 --parseLet :: [Token] -> Either String (Expr, [Token])
 --parseLet toks =
@@ -104,8 +106,8 @@ parseSub toks =
 -- or a user-defined binding we need to branch based on that
 -- parseSymbol checks specifically for 'special forms' or
 -- it simply returns a Var with the Symbol name
-parseSymbol :: [Token] -> Either String (Expr, [Token])
-parseSymbol [] = Left "Expected Symbol but received EOF"
+parseSymbol :: [Token] -> Result (Expr, [Token])
+parseSymbol [] = Err "Expected Symbol but received EOF"
 parseSymbol (Sym s:toks) =
     case s of
         -- "cons" -- create a Pair
@@ -117,25 +119,25 @@ parseSymbol (Sym s:toks) =
         "-" -> parseSub toks
         "*" -> parseMul toks -- consume '*' Symbol token
         "/" -> parseDiv toks
-        _ -> Right (Var s, toks)
-parseSymbol (tok:_) = Left ("Expected Symbol but received: " ++ (show tok))
+        _ -> Ok (Var s, toks)
+parseSymbol (tok:_) = Err ("Expected Symbol but received: " ++ (show tok))
 
-parseExpr :: [Token] -> Either String (Expr, [Token])
-parseExpr [] = Left "Unexpected EOF"
-parseExpr (Num v:toks) = Right (Number v, toks)
-parseExpr (Sym s:toks) = Right (Var s, toks)
+parseExpr :: [Token] -> Result (Expr, [Token])
+parseExpr [] = Err "Unexpected EOF"
+parseExpr (Num v:toks) = Ok (Number v, toks)
+parseExpr (Sym s:toks) = Ok (Var s, toks)
 parseExpr (LParn:toks) =
     case peek toks of
         Just (Sym s) -> parseSymbol toks
         Just LParn -> parseExpr toks
-        Just tok -> Left ("Expected LParn or Symbol but received: " ++ (show tok))
-        Nothing -> Left "Unexpected EOF"
+        Just tok -> Err ("Expected LParn or Symbol but received: " ++ (show tok))
+        Nothing -> Err "Unexpected EOF"
 -- parseExpr RParn:toks =
 
 
-parse :: [Token] -> Either String Expr
+parse :: [Token] -> Result Expr
 parse toks = case parseExpr toks of
-                 Right (expr, _) -> Right expr
-                 Left s -> Left s
+                 Ok (expr, _) -> Ok expr
+                 Err s -> Err s
 
 main = putStrLn $ show $ parseExpr [LParn, Sym "+", Num 10, Num 10, RParn]
