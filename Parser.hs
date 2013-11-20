@@ -10,7 +10,7 @@
 module Parser (
     Expr(Unit, Number, Boolean, Pair, Fst, Snd, Add, Sub, Mul, Div, If, Var, Let, Fun, Closure, Call, IsUnit, Gt, Lt, Eq),
     Env, 
-    parse, parseAdd) 
+    parse) 
 where
 
 import Lexer
@@ -79,7 +79,7 @@ parseAdd :: [Token] -> Either String (Expr, [Token])
 parseAdd toks =
     case parseArgs toks of
         Right (args, rest) -> case args of
-                                  a:b:xs -> Right (foldl (\(Add x y) z -> Add (Add x y) z) (Add a b) xs, rest) -- add needs two arguments (could change to one in future)
+                                  a:b:xs -> Right (foldl (\(Add x y) z -> Add (Add x y) z) (Add a b) xs, rest)
                                   a:[] -> Right (Add a Unit, rest)
                                   _ -> Left "Add takes at least one argument"
         Left s -> Left s
@@ -88,13 +88,22 @@ parseSub :: [Token] -> Either String (Expr, [Token])
 parseSub toks =
     case parseArgs toks of
         Right (args, rest) -> case args of
-                                  a:b:xs -> Right (foldl (\(Sub x y) z -> Sub (Sub x y) z) (Sub a b) xs, rest) -- add needs two arguments (could change to one in future)
+                                  a:b:xs -> Right (foldl (\(Sub x y) z -> Sub (Sub x y) z) (Sub a b) xs, rest)
                                   a:[] -> Right (Sub a Unit, rest)
                                   _ -> Left "Sub takes at least one argument"
         Left s -> Left s
 
+--parseLet :: [Token] -> Either String (Expr, [Token])
+--parseLet toks =
+--    
+--    case parseArgs toks of
+--        Right (args, rest) -> case args of
+                                  
+
 -- Since we don't know if the Symbol is a special keyword
 -- or a user-defined binding we need to branch based on that
+-- parseSymbol checks specifically for 'special forms' or
+-- it simply returns a Var with the Symbol name
 parseSymbol :: [Token] -> Either String (Expr, [Token])
 parseSymbol [] = Left "Expected Symbol but received EOF"
 parseSymbol (Sym s:toks) =

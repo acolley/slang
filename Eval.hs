@@ -64,7 +64,7 @@ evalenv (If e1 e2 e3) env =
 evalenv (Var s) env =
     case (envlookup s env) of
         Just e -> Right e
-        Nothing -> Left "Unbound variable name"
+        Nothing -> Left ("Unbound variable name: " ++ s)
 evalenv (Let s e1 e2) env =
     case evalenv e1 env of
         Right v -> evalenv e2 ((s, v):env) -- eval e2 in the augmented environment containing 's'
