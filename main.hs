@@ -29,4 +29,5 @@ parseArgs (arg:args) =
 
 main = do
     args <- getArgs
+    putStrLn $ head args
     parseArgs args

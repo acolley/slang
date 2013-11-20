@@ -13,6 +13,8 @@ module Parser (
     parse) 
 where
 
+import Control.Applicative
+
 import Lexer
 
 import Utils
@@ -20,6 +22,7 @@ import Utils
 data Expr = 
     Unit
     | Number Int
+    | StrLit String
     | Boolean Bool
     | Pair Expr Expr
     | Fst Expr
@@ -52,11 +55,9 @@ peek (tok:_) = Just tok
 -- in the given Token list
 parseArgs :: [Token] -> Result ([Expr], [Token])
 parseArgs (RParn:toks) = Ok ([], toks)
-parseArgs toks =
+parseArgs toks = 
     case parseExpr toks of
-        Ok (e, toks1) -> case parseArgs toks1 of
-                             Ok (es, toks2) -> Ok (e:es, toks2)
-                             Err s -> Err s
+        Ok (e, toks1) -> (\(es, toks2) -> (e:es, toks2)) <$> parseArgs toks1
         Err s -> Err s
 
 parseMul :: [Token] -> Result (Expr, [Token])
@@ -95,6 +96,16 @@ parseSub toks =
                                _ -> Err "Sub takes at least one argument"
         Err s -> Err s
 
+parseFun :: [Token] -> Result (Expr, [Token])
+parseFun toks =
+    case parseArgs toks of
+        Ok (args, rest) -> case args of
+                               arg:body:[] -> case arg of
+                                                  StrLit s -> Ok (Fun "" s body, rest)
+                                                  _ -> Err "First argument to Fun should be a string"
+                               xs -> Err ("Fun definition takes two arguments: " ++ (show (length xs)) ++ " given")
+        Err s -> Err s
+
 --parseLet :: [Token] -> Either String (Expr, [Token])
 --parseLet toks =
 --    
@@ -112,6 +123,7 @@ parseSymbol (Sym s:toks) =
     case s of
         -- "cons" -- create a Pair
         -- "let"
+        "fn" -> parseFun toks
         -- "if"
         -- "fst"
         -- "snd"
@@ -132,12 +144,8 @@ parseExpr (LParn:toks) =
         Just LParn -> parseExpr toks
         Just tok -> Err ("Expected LParn or Symbol but received: " ++ (show tok))
         Nothing -> Err "Unexpected EOF"
--- parseExpr RParn:toks =
-
 
 parse :: [Token] -> Result Expr
-parse toks = case parseExpr toks of
-                 Ok (expr, _) -> Ok expr
-                 Err s -> Err s
+parse toks = (\(e, _) -> e) <$> parseExpr toks
 
 main = putStrLn $ show $ parseExpr [LParn, Sym "+", Num 10, Num 10, RParn]
