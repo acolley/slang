@@ -118,28 +118,6 @@ parseFun (tok:toks) = Err ("Expected LParn but received: " ++ (show tok))
 --        Right (args, rest) -> case args of
                                   
 
--- Since we don't know if the Symbol is a special keyword
--- or a user-defined binding we need to branch based on that
--- parseSymbol checks specifically for 'special forms' or
--- it simply returns a Var with the Symbol name
---parseSymbol :: [Token] -> Result (Expr, [Token])
---parseSymbol [] = Err "Expected Symbol but received EOF"
---parseSymbol (Sym s:toks) =
---    case s of
---        "nil" -> Ok (Unit, toks)
---        -- "cons" -- create a Pair
---        -- "let"
---        "fn" -> parseFun toks
---        -- "if"
---        -- "fst" -- fst and snd should also be global scope functions
---        -- "snd"
---        "+" -> parseAdd toks -- consume '+' Symbol token, TODO: have this as a 'global' scope function?
---        "-" -> parseSub toks
---        "*" -> parseMul toks -- consume '*' Symbol token
---        "/" -> parseDiv toks
---        _ -> Ok (Var s, toks)
---parseSymbol (tok:_) = Err ("Expected Symbol but received: " ++ (show tok))
-
 -- new parseSymbol function to be used with parseCall
 -- should only return things that can be used in a Call expr
 parseSymbol :: [Token] -> Result (Expr, [Token])
@@ -172,12 +150,6 @@ parseExpr (Num v:toks) = Ok (Number v, toks)
 parseExpr (Str s:toks) = Ok (StrLit s, toks)
 parseExpr (Sym s:toks) = Ok (Var s, toks)
 parseExpr (LParn:toks) = parseCall toks
---parseExpr (LParn:toks) =
---    case peek toks of
---        Just (Sym s) -> parseSymbol toks
---        Just LParn -> parseExpr toks
---        Just tok -> Err ("Expected LParn or Symbol but received: " ++ (show tok))
---        Nothing -> Err "Unexpected EOF"
 
 parse :: [Token] -> Result Expr
 parse toks = (\(e, _) -> e) <$> parseExpr toks
