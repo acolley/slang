@@ -24,7 +24,7 @@ isSymbolChar c = isSymbolStart c || isDigit c
 lexStr :: String -> Result (Token, String)
 lexStr str = 
     case splitOn '"' str of
-        Just (pre, post) -> Ok (Str (init pre), post)
+        Just (pre, post) -> Ok (Str pre, (tail post))
         Nothing -> Err "Expected closing quote"
 
 lexDigit :: String -> Result (Token, String)

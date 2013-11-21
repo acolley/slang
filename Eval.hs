@@ -14,6 +14,7 @@ envlookup s ((v, e):xs) = if s == v then Just e else (envlookup s xs)
 evalenv :: Expr -> Env -> Result Expr
 evalenv Unit _ = Ok Unit
 evalenv (Number i) _  = Ok (Number i)
+evalenv (StrLit s) _ = Ok (StrLit s)
 evalenv (Boolean b) _ = Ok (Boolean b)
 evalenv (Pair e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
@@ -36,28 +37,28 @@ evalenv (Add e1 e2) env =
         (Ok (Number v1), Ok Unit) -> Ok (Number v1)
         (Err s, _) -> Err s
         (_, Err s) -> Err s
-        _ -> Err "Non-number used in Add"
+        _ -> Err "Non-Number used in Add"
 evalenv (Sub e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
         (Ok (Number v1), Ok (Number v2)) -> Ok (Number (v1 - v2))
         (Ok (Number v1), Ok Unit) -> Ok (Number (-v1))
         (Err s, _) -> Err s
         (_, Err s) -> Err s
-        _ -> Err "Non-number used in Sub"
+        _ -> Err "Non-Number used in Sub"
 evalenv (Mul e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
         (Ok (Number v1), Ok (Number v2)) -> Ok (Number (v1 * v2))
         (Ok (Number v1), Ok Unit) -> Ok (Number v1)
         (Err s, _) -> Err s
         (_, Err s) -> Err s
-        _ -> Err "Non-number used in Mul"
+        _ -> Err "Non-Number used in Mul"
 evalenv (Div e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
         (Ok (Number v1), Ok (Number v2)) -> Ok (Number (v1 `div` v2))
         (Ok (Number v1), Ok Unit) -> Ok (Number v1)
         (Err s, _) -> Err s
         (_, Err s) -> Err s
-        _ -> Err "Non-number used in Div"
+        _ -> Err "Non-Number used in Div"
 evalenv (If e1 e2 e3) env = 
     case (evalenv e1 env) of
         Ok (Boolean b) -> if b then (evalenv e2 env) else (evalenv e3 env)

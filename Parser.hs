@@ -8,7 +8,7 @@
 -- be syntactically correct, otherwise produce an error
 
 module Parser (
-    Expr(Unit, Number, Boolean, Pair, Fst, Snd, Add, Sub, Mul, Div, If, Var, Let, Fun, Closure, Call, IsUnit, Gt, Lt, Eq),
+    Expr(Unit,Number,StrLit,Boolean,Pair,Fst,Snd,Add,Sub,Mul,Div,If,Var,Let,Fun,Closure,Call,IsUnit,Gt,Lt,Eq),
     Env, 
     parse) 
 where
@@ -134,10 +134,27 @@ parseSymbol (Sym s:toks) =
         _ -> Ok (Var s, toks)
 parseSymbol (tok:_) = Err ("Expected Symbol but received: " ++ (show tok))
 
+parseCall :: [Token] -> Result (Expr, [Token])
+parseCall [] = Err "Expected Symbol or LParn but received EOF"
+parseCall (LParn:toks) = parseExpr (LParn:toks)
+parseCall (Sym sym:toks) =
+    case sym of
+        -- "cons" -- create a Pair
+        -- "let"
+        -- "if"
+        -- "fst"
+        -- "snd"
+        _ -> case parseSymbol (Sym sym:toks) of
+                 Ok (e, rest) -> (\(e1, ts) -> (Call e e1, ts)) <$> parseExpr rest
+                 Err s -> Err s
+parseCall (tok:_) = Err ("Expected Symbol, LParn or Var but received: " ++ (show tok))
+
 parseExpr :: [Token] -> Result (Expr, [Token])
 parseExpr [] = Err "Unexpected EOF"
 parseExpr (Num v:toks) = Ok (Number v, toks)
+parseExpr (Str s:toks) = Ok (StrLit s, toks)
 parseExpr (Sym s:toks) = Ok (Var s, toks)
+--parseExpr (LParn:toks) = parseCall toks
 parseExpr (LParn:toks) =
     case peek toks of
         Just (Sym s) -> parseSymbol toks
