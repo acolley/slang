@@ -9,15 +9,22 @@ import Utils
 -- Built-in functions
 
 slang_fst :: Expr
-slang_fst = Closure [] "" "pr" (Fst (Var "pr"))
+slang_fst = Closure [] "" ["pr"] (Fst (Var "pr"))
 
 slang_snd :: Expr
-slang_snd = Closure [] "" "pr" (Snd (Var "pr"))
+slang_snd = Closure [] "" ["pr"] (Snd (Var "pr"))
 
-slang_cons :: Expr
-slang_cons = Closure [] "" "fst" (Fun "" "snd" (Pair (Var "fst") (Var "snd")))
+--slang_cons :: Expr
+--slang_cons = Closure [] "" ["fst"] (Fun "" "snd" (Pair (Var "fst") (Var "snd")))
     
-
+all_or_none :: [Expr] -> Env -> Result [Expr]
+all_or_none [] _ = Ok []
+all_or_none (e:es) env =
+    case evalenv e env of
+        Ok applied -> case all_or_none es env of
+                          Ok rest -> Ok (applied:rest)
+                          Err s -> Err s
+        Err s -> Err s
 
 -- having an environment represented with a list of (String, Expr) pairs
 -- automatically achieves 'shadowing' for bound variables if you add and
@@ -87,13 +94,16 @@ evalenv (Let s e1 e2) env =
     case evalenv e1 env of
         Ok v -> evalenv e2 ((s, v):env) -- eval e2 in the augmented environment containing 's'
         Err s -> Err s
-evalenv (Fun name arg body) env = Ok (Closure env name arg body)
-evalenv (Closure env name arg body) _ = Ok (Closure env name arg body)
-evalenv (Call e1 e2) env =
-    case (evalenv e1 env, evalenv e2 env) of
-        (Ok (Closure cenv name arg body), Ok val) ->
-            let newenv = if name == "" then (arg, val):cenv
-                         else (name, Closure cenv name arg body):(arg, val):cenv
+evalenv (Fun name args body) env = Ok (Closure env name args body)
+evalenv (Closure env name args body) _ = Ok (Closure env name args body)
+evalenv (Call e1 es) env =
+    case (evalenv e1 env, all_or_none es env) of
+        (Ok (Closure cenv name args body), Ok vals) ->
+            if length es /= length args 
+            then Err ("Fun " ++ name ++ " called with wrong number of arguments")
+            else let newenv = if name == "" 
+                              then (zip args vals ++ cenv)
+                              else (name, Closure cenv name args body):(zip args vals) ++ cenv
             in evalenv body newenv
         (Err s, _) -> Err s
         (_, Err s) -> Err s
@@ -124,20 +134,20 @@ evalenv (Eq e1 e2) env =
 
 eval :: Expr -> Result Expr
 eval expr = 
-    let env = [("fst", slang_fst), ("snd", slang_snd), ("cons", slang_cons)]
+    let env = [("fst", slang_fst), ("snd", slang_snd)]--, ("cons", slang_cons)]
     in evalenv expr env
 
 -- TODO: Need some way to support variable numbers of arguments
 --slang_add :: Expr
 --slang_add = (Fun "" "x")
 
-mymap :: Expr
-mymap = 
-    (Fun "_map" "f" 
-        (Fun "" "xs"
-            (If (IsUnit (Var "xs")) 
-                Unit 
-                (Pair (Call (Var "f") (Fst (Var "xs"))) 
-                      (Call (Call (Var "_map") (Var "f")) (Snd (Var "xs")))))))
+--mymap :: Expr
+--mymap = 
+--    (Fun "_map" "f" 
+--        (Fun "" "xs"
+--            (If (IsUnit (Var "xs")) 
+--                Unit 
+--                (Pair (Call (Var "f") (Fst (Var "xs"))) 
+--                      (Call (Call (Var "_map") (Var "f")) (Snd (Var "xs")))))))
 
 main = putStrLn $ show $ eval (Eq (Number 10) (Number 10))

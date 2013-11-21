@@ -19,6 +19,9 @@ ext f (Ok expr) = f expr
 --main = putStrLn $ show $ (eval `ext` (parse $ lexer "(- 10 20 (* 10 10))"))
 --main = putStrLn $ show $ eval (Call (Var "snd") (Pair (Number 10) Unit)) -- test global funcs "fst" and "snd"
 --main = putStrLn $ show $ eval (Call (Call (Var "cons") (Number 10)) (Number 20))
+--main = putStrLn $ show $ parseSyntax [LParn, LParn, Num 10, RParn, RParn]
+--main = putStrLn $ show $ eval (Call (Fun "" ["x", "y"] (Add (Var "x") (Var "y"))) [Number 10, Number 20]) -- test multi argument functions
+
 
 parseArgs :: [String] -> IO ()
 parseArgs [] = putStrLn "No arguments given"

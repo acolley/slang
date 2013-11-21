@@ -10,7 +10,8 @@
 module Parser (
     Expr(Unit,Number,StrLit,Boolean,Pair,Fst,Snd,Add,Sub,Mul,Div,If,Var,Let,Fun,Closure,Call,IsUnit,Gt,Lt,Eq),
     Env, 
-    parse) 
+    parse,
+    parseSyntax)  -- TODO: remove
 where
 
 import Control.Applicative
@@ -34,9 +35,9 @@ data Expr =
     | If Expr Expr Expr
     | Var String
     | Let String Expr Expr -- bind the result of first expr to the given string
-    | Fun String String Expr -- empty string for name means anonymous Fun
-    | Closure Env String String Expr -- holds an Env and a Fun
-    | Call Expr Expr
+    | Fun String [String] Expr -- empty string for name means anonymous Fun
+    | Closure Env String [String] Expr -- holds an Env and a Fun
+    | Call Expr [Expr]
     | IsUnit Expr
     | Gt Expr Expr
     | Lt Expr Expr
@@ -45,9 +46,30 @@ data Expr =
 
 type Env = [(String, Expr)]
 
-data AtomType = AtomNum Int | AtomStr String | AtomSym String
+data AtomType = AtomNum Int | AtomStr String | AtomSym String deriving (Show)
 
-data Syntax = Atom AtomType | Cell [Syntax]
+data Syntax = Atom AtomType | Cell [Syntax] deriving (Show)
+
+parseAtom :: [Token] -> Result (Syntax, [Token])
+parseAtom (Num i:toks) = Ok (Atom (AtomNum i), toks)
+parseAtom (Str s:toks) = Ok (Atom (AtomStr s), toks)
+parseAtom (Sym s:toks) = Ok (Atom (AtomSym s), toks)
+parseAtom (tok:toks) = Err ("Expected Atom. Received: " ++ (show tok))
+
+parseElems :: [Token] -> Result ([Syntax], [Token])
+parseElems [] = Err "Expected RParn or Atom. Received unexpected EOF"
+parseElems (RParn:toks) = Ok ([], toks)
+parseElems toks = case parseSyntax toks of
+                      Ok (syn, rest) -> (\(syns, rest1) -> (syn:syns, rest1)) <$> parseElems rest
+                      Err s -> Err s
+
+parseCell :: [Token] -> Result (Syntax, [Token])
+parseCell toks = (\(elems, rest) -> (Cell elems, rest)) <$> parseElems toks
+
+parseSyntax :: [Token] -> Result (Syntax, [Token])
+parseSyntax (LParn:toks) = parseCell toks
+parseSyntax (RParn:toks) = Err "Expected LParn. Received: RParn"
+parseSyntax toks = parseAtom toks
 
 peek :: [Token] -> Maybe Token
 peek [] = Nothing
@@ -55,18 +77,24 @@ peek (tok:_) = Just tok
 
 -- parsePair :: [Token] -> Either String (Expr, [Token])
 
--- Return the list of Exprs terminated by an RParn
--- in the given Token list
-parseArgs :: [Token] -> Result ([Expr], [Token])
-parseArgs (RParn:toks) = Ok ([], toks)
-parseArgs toks = 
+-- parse a cell as a list of data, until reaching an RParn
+parseList :: [Token] -> Result ([Expr], [Token])
+parseList [] = Err "Expected RParn. Received unexpected EOF"
+parseList (RParn:toks) = Ok ([], toks)
+parseList toks = 
     case parseExpr toks of
-        Ok (e, toks1) -> (\(es, toks2) -> (e:es, toks2)) <$> parseArgs toks1
+        Ok (e, toks1) -> (\(es, toks2) -> (e:es, toks2)) <$> parseList toks1
         Err s -> Err s
+
+parseArgList :: [Token] -> Result ([String], [Token])
+parseArgList [] = Err "Expected RParn. Received unexpected EOF"
+parseArgList (RParn:toks) = Ok([], toks)
+parseArgList (Sym sym:toks) = (\(args, rest) -> (sym:args, rest)) <$> parseArgList toks
+parseArgList (tok:toks) = Err ("Expected Symbol. Received: " ++ (show tok))
 
 parseMul :: [Token] -> Result (Expr, [Token])
 parseMul toks =
-    case parseArgs toks of
+    case parseList toks of
         Ok (args, rest) -> case args of
                                a:b:xs -> Ok (foldl (\(Mul x y) z -> Mul (Mul x y) z) (Mul a b) xs, rest)
                                a:[] -> Ok (Mul a Unit, rest)
@@ -75,7 +103,7 @@ parseMul toks =
 
 parseDiv :: [Token] -> Result (Expr, [Token])
 parseDiv toks =
-    case parseArgs toks of
+    case parseList toks of
         Ok (args, rest) -> case args of
                                a:b:xs -> Ok (foldl (\(Div x y) z -> Div (Div x y) z) (Div a b) xs, rest)
                                a:[] -> Ok (Div a Unit, rest)
@@ -84,7 +112,7 @@ parseDiv toks =
 
 parseAdd :: [Token] -> Result (Expr, [Token])
 parseAdd toks =
-    case parseArgs toks of
+    case parseList toks of
         Ok (args, rest) -> case args of
                                a:b:xs -> Ok (foldl (\(Add x y) z -> Add (Add x y) z) (Add a b) xs, rest)
                                a:[] -> Ok (Add a Unit, rest)
@@ -93,7 +121,7 @@ parseAdd toks =
 
 parseSub :: [Token] -> Result (Expr, [Token])
 parseSub toks =
-    case parseArgs toks of
+    case parseList toks of
         Ok (args, rest) -> case args of
                                a:b:xs -> Ok (foldl (\(Sub x y) z -> Sub (Sub x y) z) (Sub a b) xs, rest)
                                a:[] -> Ok (Sub a Unit, rest)
@@ -101,14 +129,13 @@ parseSub toks =
         Err s -> Err s
 
 parseFun :: [Token] -> Result (Expr, [Token])
-parseFun toks =
-    case parseArgs toks of
-        Ok (args, rest) -> case args of
-                               arg:body:[] -> case arg of
-                                                  StrLit s -> Ok (Fun "" s body, rest)
-                                                  _ -> Err "First argument to Fun should be a string"
-                               xs -> Err ("Fun definition takes two arguments: " ++ (show (length xs)) ++ " given")
+parseFun (LParn:toks) =
+    case parseArgList toks of
+        Ok (args, rest) -> case parseExpr rest of
+                               Ok (body, rest1) -> Ok (Fun "" args body, rest1)
+                               Err s -> Err s
         Err s -> Err s
+parseFun (tok:toks) = Err ("Expected LParn but received: " ++ (show tok))
 
 --parseLet :: [Token] -> Either String (Expr, [Token])
 --parseLet toks =
@@ -147,6 +174,7 @@ parseSymbol (tok:_) = Err ("Expected Symbol but received: " ++ (show tok))
 --        "fn" -> parseFun toks
 --        _ Ok (Var sym, toks)
 
+-- parse a cell as a function call
 parseCall :: [Token] -> Result (Expr, [Token])
 parseCall [] = Err "Expected Symbol or LParn but received EOF"
 parseCall (LParn:toks) = parseExpr (LParn:toks)
@@ -157,7 +185,7 @@ parseCall (Sym sym:toks) =
         -- "let"
         -- "if"
         _ -> case parseSymbol (Sym sym:toks) of
-                 Ok (e, rest) -> (\(e1, ts) -> (Call e e1, ts)) <$> parseExpr rest
+                 Ok (e, rest) -> (\(e1, ts) -> (Call e [e1], ts)) <$> parseExpr rest
                  Err s -> Err s
 parseCall (tok:_) = Err ("Expected Symbol, LParn or Var but received: " ++ (show tok))
 
