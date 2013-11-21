@@ -1,8 +1,23 @@
 module Eval (eval) where
 
+import Control.Applicative
+
 import Parser
 
 import Utils
+
+-- Built-in functions
+
+slang_fst :: Expr
+slang_fst = Closure [] "" "pr" (Fst (Var "pr"))
+
+slang_snd :: Expr
+slang_snd = Closure [] "" "pr" (Snd (Var "pr"))
+
+slang_cons :: Expr
+slang_cons = Closure [] "" "fst" (Fun "" "snd" (Pair (Var "fst") (Var "snd")))
+    
+
 
 -- having an environment represented with a list of (String, Expr) pairs
 -- automatically achieves 'shadowing' for bound variables if you add and
@@ -108,7 +123,9 @@ evalenv (Eq e1 e2) env =
         (_, _) -> Err ("Eq received something that wasn't a Number")
 
 eval :: Expr -> Result Expr
-eval expr = evalenv expr []
+eval expr = 
+    let env = [("fst", slang_fst), ("snd", slang_snd), ("cons", slang_cons)]
+    in evalenv expr env
 
 -- TODO: Need some way to support variable numbers of arguments
 --slang_add :: Expr

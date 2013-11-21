@@ -45,6 +45,10 @@ data Expr =
 
 type Env = [(String, Expr)]
 
+data AtomType = AtomNum Int | AtomStr String | AtomSym String
+
+data Syntax = Atom AtomType | Cell [Syntax]
+
 peek :: [Token] -> Maybe Token
 peek [] = Nothing
 peek (tok:_) = Just tok
@@ -121,11 +125,12 @@ parseSymbol :: [Token] -> Result (Expr, [Token])
 parseSymbol [] = Err "Expected Symbol but received EOF"
 parseSymbol (Sym s:toks) =
     case s of
+        "nil" -> Ok (Unit, toks)
         -- "cons" -- create a Pair
         -- "let"
         "fn" -> parseFun toks
         -- "if"
-        -- "fst"
+        -- "fst" -- fst and snd should also be global scope functions
         -- "snd"
         "+" -> parseAdd toks -- consume '+' Symbol token, TODO: have this as a 'global' scope function?
         "-" -> parseSub toks
@@ -134,16 +139,23 @@ parseSymbol (Sym s:toks) =
         _ -> Ok (Var s, toks)
 parseSymbol (tok:_) = Err ("Expected Symbol but received: " ++ (show tok))
 
+-- new parseSymbol function to be used with parseCall
+-- should only return things that can be used in a Call expr
+--parseSymbol :: [Token] -> Result (Expr, [Token])
+--parseSymbol (Sym sym:toks) =
+--    case sym of
+--        "fn" -> parseFun toks
+--        _ Ok (Var sym, toks)
+
 parseCall :: [Token] -> Result (Expr, [Token])
 parseCall [] = Err "Expected Symbol or LParn but received EOF"
 parseCall (LParn:toks) = parseExpr (LParn:toks)
 parseCall (Sym sym:toks) =
     case sym of
+        -- we parse special forms here as we don't want to 'Call' these
         -- "cons" -- create a Pair
         -- "let"
         -- "if"
-        -- "fst"
-        -- "snd"
         _ -> case parseSymbol (Sym sym:toks) of
                  Ok (e, rest) -> (\(e1, ts) -> (Call e e1, ts)) <$> parseExpr rest
                  Err s -> Err s

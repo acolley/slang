@@ -17,6 +17,8 @@ ext f (Ok expr) = f expr
 --main = putStrLn $ show $ parseAdd [Num 10, Num 20, Num 30, Num 40, Num 50, RParn]
 --main = putStrLn $ show $ (eval `ext` (parse $ lexer "(* (+ 1 2) 3 4)"))
 --main = putStrLn $ show $ (eval `ext` (parse $ lexer "(- 10 20 (* 10 10))"))
+--main = putStrLn $ show $ eval (Call (Var "snd") (Pair (Number 10) Unit)) -- test global funcs "fst" and "snd"
+--main = putStrLn $ show $ eval (Call (Call (Var "cons") (Number 10)) (Number 20))
 
 parseArgs :: [String] -> IO ()
 parseArgs [] = putStrLn "No arguments given"
