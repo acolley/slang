@@ -14,6 +14,7 @@ module Parser (
 where
 
 import Control.Applicative
+import Debug.Trace
 
 import Lexer
 
@@ -106,7 +107,9 @@ parseFun :: [Token] -> Result (Expr, [Token])
 parseFun (LParn:toks) =
     case parseArgList toks of
         Ok (args, rest) -> case parseExpr rest of
-                               Ok (body, rest1) -> Ok (Fun "" args body, rest1)
+                               Ok (body, rest1) -> case rest1 of
+                                                       RParn:rest2 -> Ok (Fun "" args body, rest2) -- consume RParn at end of Fun definition
+                                                       tok:rest2 -> Err ("Expected RParn. Received: " ++ (show tok))
                                Err s -> Err s
         Err s -> Err s
 parseFun (tok:toks) = Err ("Expected LParn but received: " ++ (show tok))

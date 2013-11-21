@@ -116,7 +116,7 @@ evalenv (Call e1 es) env =
     case (evalenv e1 env, all_or_none es env) of
         (Ok (Closure cenv name args body), Ok vals) ->
             if length es /= length args 
-            then Err ("Fun " ++ name ++ " called with wrong number of arguments")
+            then Err ("Fun " ++ name ++ " called with wrong number of arguments. Expected " ++ (show (length args)) ++ " got " ++ (show (length vals)))
             else let newenv = if name == "" 
                               then (zip args vals ++ cenv)
                               else (name, Closure cenv name args body):(zip args vals) ++ cenv
