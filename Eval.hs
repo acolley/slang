@@ -8,11 +8,27 @@ import Utils
 
 -- Built-in functions
 
+--slang_add :: Expr
+--slang_add = Closure [] "" [
+
 slang_fst :: Expr
 slang_fst = Closure [] "" ["pr"] (Fst (Var "pr"))
 
 slang_snd :: Expr
 slang_snd = Closure [] "" ["pr"] (Snd (Var "pr"))
+
+-- TODO: eventually support variable argument list
+slang_add :: Expr
+slang_add = Closure [] "" ["x", "y"] (Add (Var "x") (Var "y"))
+
+slang_sub :: Expr
+slang_sub = Closure [] "" ["x", "y"] (Sub (Var "x") (Var "y"))
+
+slang_mul :: Expr
+slang_mul = Closure [] "" ["x", "y"] (Mul (Var "x") (Var "y"))
+
+slang_div :: Expr
+slang_div = Closure [] "" ["x", "y"] (Div (Var "x") (Var "y"))
 
 --slang_cons :: Expr
 --slang_cons = Closure [] "" ["fst"] (Fun "" "snd" (Pair (Var "fst") (Var "snd")))
@@ -134,7 +150,7 @@ evalenv (Eq e1 e2) env =
 
 eval :: Expr -> Result Expr
 eval expr = 
-    let env = [("fst", slang_fst), ("snd", slang_snd)]--, ("cons", slang_cons)]
+    let env = [("+", slang_add), ("-", slang_sub), ("*", slang_mul), ("/", slang_div), ("fst", slang_fst), ("snd", slang_snd)]
     in evalenv expr env
 
 -- TODO: Need some way to support variable numbers of arguments

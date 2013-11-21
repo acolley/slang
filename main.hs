@@ -21,6 +21,7 @@ ext f (Ok expr) = f expr
 --main = putStrLn $ show $ eval (Call (Call (Var "cons") (Number 10)) (Number 20))
 --main = putStrLn $ show $ parseSyntax [LParn, LParn, Num 10, RParn, RParn]
 --main = putStrLn $ show $ eval (Call (Fun "" ["x", "y"] (Add (Var "x") (Var "y"))) [Number 10, Number 20]) -- test multi argument functions
+--main = putStrLn $ show $ eval (Call (Var "+") [Number 1, Number 1])
 
 
 parseArgs :: [String] -> IO ()

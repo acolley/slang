@@ -10,8 +10,7 @@
 module Parser (
     Expr(Unit,Number,StrLit,Boolean,Pair,Fst,Snd,Add,Sub,Mul,Div,If,Var,Let,Fun,Closure,Call,IsUnit,Gt,Lt,Eq),
     Env, 
-    parse,
-    parseSyntax)  -- TODO: remove
+    parse)
 where
 
 import Control.Applicative
@@ -45,31 +44,6 @@ data Expr =
     deriving (Show)
 
 type Env = [(String, Expr)]
-
-data AtomType = AtomNum Int | AtomStr String | AtomSym String deriving (Show)
-
-data Syntax = Atom AtomType | Cell [Syntax] deriving (Show)
-
-parseAtom :: [Token] -> Result (Syntax, [Token])
-parseAtom (Num i:toks) = Ok (Atom (AtomNum i), toks)
-parseAtom (Str s:toks) = Ok (Atom (AtomStr s), toks)
-parseAtom (Sym s:toks) = Ok (Atom (AtomSym s), toks)
-parseAtom (tok:toks) = Err ("Expected Atom. Received: " ++ (show tok))
-
-parseElems :: [Token] -> Result ([Syntax], [Token])
-parseElems [] = Err "Expected RParn or Atom. Received unexpected EOF"
-parseElems (RParn:toks) = Ok ([], toks)
-parseElems toks = case parseSyntax toks of
-                      Ok (syn, rest) -> (\(syns, rest1) -> (syn:syns, rest1)) <$> parseElems rest
-                      Err s -> Err s
-
-parseCell :: [Token] -> Result (Syntax, [Token])
-parseCell toks = (\(elems, rest) -> (Cell elems, rest)) <$> parseElems toks
-
-parseSyntax :: [Token] -> Result (Syntax, [Token])
-parseSyntax (LParn:toks) = parseCell toks
-parseSyntax (RParn:toks) = Err "Expected LParn. Received: RParn"
-parseSyntax toks = parseAtom toks
 
 peek :: [Token] -> Maybe Token
 peek [] = Nothing
@@ -148,44 +122,47 @@ parseFun (tok:toks) = Err ("Expected LParn but received: " ++ (show tok))
 -- or a user-defined binding we need to branch based on that
 -- parseSymbol checks specifically for 'special forms' or
 -- it simply returns a Var with the Symbol name
-parseSymbol :: [Token] -> Result (Expr, [Token])
-parseSymbol [] = Err "Expected Symbol but received EOF"
-parseSymbol (Sym s:toks) =
-    case s of
-        "nil" -> Ok (Unit, toks)
-        -- "cons" -- create a Pair
-        -- "let"
-        "fn" -> parseFun toks
-        -- "if"
-        -- "fst" -- fst and snd should also be global scope functions
-        -- "snd"
-        "+" -> parseAdd toks -- consume '+' Symbol token, TODO: have this as a 'global' scope function?
-        "-" -> parseSub toks
-        "*" -> parseMul toks -- consume '*' Symbol token
-        "/" -> parseDiv toks
-        _ -> Ok (Var s, toks)
-parseSymbol (tok:_) = Err ("Expected Symbol but received: " ++ (show tok))
+--parseSymbol :: [Token] -> Result (Expr, [Token])
+--parseSymbol [] = Err "Expected Symbol but received EOF"
+--parseSymbol (Sym s:toks) =
+--    case s of
+--        "nil" -> Ok (Unit, toks)
+--        -- "cons" -- create a Pair
+--        -- "let"
+--        "fn" -> parseFun toks
+--        -- "if"
+--        -- "fst" -- fst and snd should also be global scope functions
+--        -- "snd"
+--        "+" -> parseAdd toks -- consume '+' Symbol token, TODO: have this as a 'global' scope function?
+--        "-" -> parseSub toks
+--        "*" -> parseMul toks -- consume '*' Symbol token
+--        "/" -> parseDiv toks
+--        _ -> Ok (Var s, toks)
+--parseSymbol (tok:_) = Err ("Expected Symbol but received: " ++ (show tok))
 
 -- new parseSymbol function to be used with parseCall
 -- should only return things that can be used in a Call expr
---parseSymbol :: [Token] -> Result (Expr, [Token])
---parseSymbol (Sym sym:toks) =
---    case sym of
---        "fn" -> parseFun toks
---        _ Ok (Var sym, toks)
+parseSymbol :: [Token] -> Result (Expr, [Token])
+parseSymbol (Sym sym:toks) =
+    case sym of
+        _ -> Ok (Var sym, toks)
 
 -- parse a cell as a function call
 parseCall :: [Token] -> Result (Expr, [Token])
 parseCall [] = Err "Expected Symbol or LParn but received EOF"
-parseCall (LParn:toks) = parseExpr (LParn:toks)
+parseCall (LParn:toks) = 
+    case parseExpr (LParn:toks) of
+        Ok (e, rest) -> (\(es, ts) -> (Call e es, ts)) <$> parseList rest
+        Err s -> Err s
 parseCall (Sym sym:toks) =
     case sym of
         -- we parse special forms here as we don't want to 'Call' these
         -- "cons" -- create a Pair
         -- "let"
         -- "if"
+        "fn" -> parseFun toks
         _ -> case parseSymbol (Sym sym:toks) of
-                 Ok (e, rest) -> (\(e1, ts) -> (Call e [e1], ts)) <$> parseExpr rest
+                 Ok (e, rest) -> (\(es, ts) -> (Call e es, ts)) <$> parseList rest
                  Err s -> Err s
 parseCall (tok:_) = Err ("Expected Symbol, LParn or Var but received: " ++ (show tok))
 
@@ -194,13 +171,13 @@ parseExpr [] = Err "Unexpected EOF"
 parseExpr (Num v:toks) = Ok (Number v, toks)
 parseExpr (Str s:toks) = Ok (StrLit s, toks)
 parseExpr (Sym s:toks) = Ok (Var s, toks)
---parseExpr (LParn:toks) = parseCall toks
-parseExpr (LParn:toks) =
-    case peek toks of
-        Just (Sym s) -> parseSymbol toks
-        Just LParn -> parseExpr toks
-        Just tok -> Err ("Expected LParn or Symbol but received: " ++ (show tok))
-        Nothing -> Err "Unexpected EOF"
+parseExpr (LParn:toks) = parseCall toks
+--parseExpr (LParn:toks) =
+--    case peek toks of
+--        Just (Sym s) -> parseSymbol toks
+--        Just LParn -> parseExpr toks
+--        Just tok -> Err ("Expected LParn or Symbol but received: " ++ (show tok))
+--        Nothing -> Err "Unexpected EOF"
 
 parse :: [Token] -> Result Expr
 parse toks = (\(e, _) -> e) <$> parseExpr toks
