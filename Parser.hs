@@ -20,6 +20,8 @@ import Lexer
 
 import Utils
 
+data Arg = NamedArg String | RestArg String  
+
 data Expr = 
     Unit
     | Number Int
@@ -35,8 +37,10 @@ data Expr =
     | If Expr Expr Expr
     | Var String
     | Let String Expr Expr -- bind the result of first expr to the given string
-    | Fun String [String] Expr -- empty string for name means anonymous Fun
-    | Closure Env String [String] Expr -- holds an Env and a Fun
+--    | Fun String [Arg] Expr -- empty string for name means anonymous Fun
+--    | Closure Env String [Arg] Expr -- holds an Env and a Fun
+    | Fun String [String] Expr
+    | Closure Env String [String] Expr
     | Call Expr [Expr]
     | IsUnit Expr
     | Gt Expr Expr
@@ -61,6 +65,7 @@ parseList toks =
         Ok (e, toks1) -> (\(es, toks2) -> (e:es, toks2)) <$> parseList toks1
         Err s -> Err s
 
+--parseArgList :: [Token] -> Result ([Arg], [Token])
 parseArgList :: [Token] -> Result ([String], [Token])
 parseArgList [] = Err "Expected RParn. Received unexpected EOF"
 parseArgList (RParn:toks) = Ok([], toks)

@@ -1,4 +1,4 @@
-module Eval (eval) where
+module Eval (eval, hlist_to_slist, slist_to_hlist) where
 
 import Control.Applicative
 
@@ -41,6 +41,16 @@ all_or_none (e:es) env =
                           Ok rest -> Ok (applied:rest)
                           Err s -> Err s
         Err s -> Err s
+
+-- convert a haskell list to a slang list
+hlist_to_slist :: [Expr] -> Expr
+hlist_to_slist es = foldr (\e ls -> Pair e ls) Unit es
+
+-- convert a slang list to a haskell list
+slist_to_hlist :: Expr -> [Expr]
+slist_to_hlist Unit = []
+slist_to_hlist (Pair e1 e2) = e1:slist_to_hlist e2
+
 
 -- having an environment represented with a list of (String, Expr) pairs
 -- automatically achieves 'shadowing' for bound variables if you add and
@@ -113,6 +123,11 @@ evalenv (Let s e1 e2) env =
 evalenv (Fun name args body) env = Ok (Closure env name args body)
 evalenv (Closure env name args body) _ = Ok (Closure env name args body)
 evalenv (Call e1 es) env =
+--    let applyArgs :: [Arg] -> [Expr] -> Result [(String, Expr)]
+--        applyArgs [] [] = Ok []
+--        applyArgs (ArgRest s:[]) [] = Ok [(s, Unit)]
+--        applyArgs (ArgRest s:[]) es = Ok ([(s
+--        applyArgs (ArgRest s:_) _ = Err "ArgRest can only be at the end of the parameter list"
     case (evalenv e1 env, all_or_none es env) of
         (Ok (Closure cenv name args body), Ok vals) ->
             if length es /= length args 

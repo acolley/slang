@@ -22,6 +22,8 @@ ext f (Ok expr) = f expr
 --main = putStrLn $ show $ parseSyntax [LParn, LParn, Num 10, RParn, RParn]
 --main = putStrLn $ show $ eval (Call (Fun "" ["x", "y"] (Add (Var "x") (Var "y"))) [Number 10, Number 20]) -- test multi argument functions
 --main = putStrLn $ show $ eval (Call (Var "+") [Number 1, Number 1])
+--main = putStrLn $ show $ hlist_to_slist [Number 10, Number 20, Number 30]
+main = putStrLn $ show $ slist_to_hlist (hlist_to_slist [Number 10, Number 20, Number 30])
 
 
 parseArgs :: [String] -> IO ()
@@ -33,7 +35,7 @@ parseArgs (arg:args) =
                        Err s -> putStrLn ("Error: " ++ s)
         Err s -> putStrLn ("Error: " ++ s)
 
-main = do
-    args <- getArgs
-    putStrLn $ head args
-    parseArgs args
+--main = do
+--    args <- getArgs
+--    putStrLn $ head args
+--    parseArgs args
