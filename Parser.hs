@@ -40,8 +40,6 @@ data Expr =
     | Let String Expr Expr -- bind the result of first expr to the given string
     | Fun String [Arg] Expr -- empty string for name means anonymous Fun
     | Closure Env String [Arg] Expr -- holds an Env and a Fun
---    | Fun String [String] Expr
---    | Closure Env String [String] Expr
     | Call Expr [Expr]
     | IsUnit Expr
     | Gt Expr Expr
@@ -67,10 +65,17 @@ parseList toks =
         Err s -> Err s
 
 parseArgList :: [Token] -> Result ([Arg], [Token])
---parseArgList :: [Token] -> Result ([String], [Token])
 parseArgList [] = Err "Expected RParn. Received unexpected EOF"
-parseArgList (RParn:toks) = Ok([], toks)
-parseArgList (Sym sym:toks) = (\(args, rest) -> (ArgNamed sym:args, rest)) <$> parseArgList toks
+parseArgList (Sym sym:RParn:toks) = -- check for special ArgRest token
+    case sym of
+        ('&':rest) -> Ok (ArgRest rest:[], toks)
+        ('&':[]) -> Err "'&' cannot be used as a variable name by itself"
+        rest -> Ok (ArgNamed rest:[], toks)
+parseArgList (RParn:toks) = Ok ([], toks)
+parseArgList (Sym sym:toks) = 
+    if head sym == '&'
+    then Err ("Can only use the var arg form at the end of argument list. In: " ++ (show sym))
+    else (\(args, rest) -> (ArgNamed sym:args, rest)) <$> parseArgList toks
 parseArgList (tok:toks) = Err ("Expected Symbol. Received: " ++ (show tok))
 
 parseMul :: [Token] -> Result (Expr, [Token])
