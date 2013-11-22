@@ -8,6 +8,7 @@
 -- be syntactically correct, otherwise produce an error
 
 module Parser (
+    Arg(ArgNamed, ArgRest),
     Expr(Unit,Number,StrLit,Boolean,Pair,Fst,Snd,Add,Sub,Mul,Div,If,Var,Let,Fun,Closure,Call,IsUnit,Gt,Lt,Eq),
     Env, 
     parse)
@@ -20,7 +21,7 @@ import Lexer
 
 import Utils
 
-data Arg = NamedArg String | RestArg String  
+data Arg = ArgNamed String | ArgRest String deriving (Show)
 
 data Expr = 
     Unit
@@ -37,10 +38,10 @@ data Expr =
     | If Expr Expr Expr
     | Var String
     | Let String Expr Expr -- bind the result of first expr to the given string
---    | Fun String [Arg] Expr -- empty string for name means anonymous Fun
---    | Closure Env String [Arg] Expr -- holds an Env and a Fun
-    | Fun String [String] Expr
-    | Closure Env String [String] Expr
+    | Fun String [Arg] Expr -- empty string for name means anonymous Fun
+    | Closure Env String [Arg] Expr -- holds an Env and a Fun
+--    | Fun String [String] Expr
+--    | Closure Env String [String] Expr
     | Call Expr [Expr]
     | IsUnit Expr
     | Gt Expr Expr
@@ -65,11 +66,11 @@ parseList toks =
         Ok (e, toks1) -> (\(es, toks2) -> (e:es, toks2)) <$> parseList toks1
         Err s -> Err s
 
---parseArgList :: [Token] -> Result ([Arg], [Token])
-parseArgList :: [Token] -> Result ([String], [Token])
+parseArgList :: [Token] -> Result ([Arg], [Token])
+--parseArgList :: [Token] -> Result ([String], [Token])
 parseArgList [] = Err "Expected RParn. Received unexpected EOF"
 parseArgList (RParn:toks) = Ok([], toks)
-parseArgList (Sym sym:toks) = (\(args, rest) -> (sym:args, rest)) <$> parseArgList toks
+parseArgList (Sym sym:toks) = (\(args, rest) -> (ArgNamed sym:args, rest)) <$> parseArgList toks
 parseArgList (tok:toks) = Err ("Expected Symbol. Received: " ++ (show tok))
 
 parseMul :: [Token] -> Result (Expr, [Token])

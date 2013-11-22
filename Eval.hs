@@ -12,23 +12,23 @@ import Utils
 --slang_add = Closure [] "" [
 
 slang_fst :: Expr
-slang_fst = Closure [] "" ["pr"] (Fst (Var "pr"))
+slang_fst = Closure [] "" [ArgNamed "pr"] (Fst (Var "pr"))
 
 slang_snd :: Expr
-slang_snd = Closure [] "" ["pr"] (Snd (Var "pr"))
+slang_snd = Closure [] "" [ArgNamed "pr"] (Snd (Var "pr"))
 
 -- TODO: eventually support variable argument list
 slang_add :: Expr
-slang_add = Closure [] "" ["x", "y"] (Add (Var "x") (Var "y"))
+slang_add = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Add (Var "x") (Var "y"))
 
 slang_sub :: Expr
-slang_sub = Closure [] "" ["x", "y"] (Sub (Var "x") (Var "y"))
+slang_sub = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Sub (Var "x") (Var "y"))
 
 slang_mul :: Expr
-slang_mul = Closure [] "" ["x", "y"] (Mul (Var "x") (Var "y"))
+slang_mul = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Mul (Var "x") (Var "y"))
 
 slang_div :: Expr
-slang_div = Closure [] "" ["x", "y"] (Div (Var "x") (Var "y"))
+slang_div = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Div (Var "x") (Var "y"))
 
 --slang_cons :: Expr
 --slang_cons = Closure [] "" ["fst"] (Fun "" "snd" (Pair (Var "fst") (Var "snd")))
@@ -123,19 +123,27 @@ evalenv (Let s e1 e2) env =
 evalenv (Fun name args body) env = Ok (Closure env name args body)
 evalenv (Closure env name args body) _ = Ok (Closure env name args body)
 evalenv (Call e1 es) env =
---    let applyArgs :: [Arg] -> [Expr] -> Result [(String, Expr)]
---        applyArgs [] [] = Ok []
---        applyArgs (ArgRest s:[]) [] = Ok [(s, Unit)]
---        applyArgs (ArgRest s:[]) es = Ok ([(s
---        applyArgs (ArgRest s:_) _ = Err "ArgRest can only be at the end of the parameter list"
+    -- TODO: evaluate args /after/ checking whether the number
+    -- of expr parameters can be accepted by the called function
+    let applyArgs :: [Arg] -> [Expr] -> Result [(String, Expr)]
+        applyArgs [] [] = Ok []
+        applyArgs (ArgRest s:[]) [] = Ok [(s, Unit)]
+        applyArgs (ArgRest s:[]) es = Ok [(s, hlist_to_slist es)]
+        applyArgs (ArgRest s:_) _ = Err "ArgRest can only be at the end of the parameter list."
+        applyArgs (ArgNamed s:args) (e:es) = case applyArgs args es of
+                                                 Ok rest -> Ok ((s, e):rest)
+                                                 Err e -> Err e
+        applyArgs [] es = Err "Called with wrong number of arguments. Too many given."
+        applyArgs args [] = Err "Called with wrong number of arguments. Too few given."
+    in
     case (evalenv e1 env, all_or_none es env) of
         (Ok (Closure cenv name args body), Ok vals) ->
-            if length es /= length args 
-            then Err ("Fun " ++ name ++ " called with wrong number of arguments. Expected " ++ (show (length args)) ++ " got " ++ (show (length vals)))
-            else let newenv = if name == "" 
-                              then (zip args vals ++ cenv)
-                              else (name, Closure cenv name args body):(zip args vals) ++ cenv
-            in evalenv body newenv
+            case applyArgs args es of
+                Ok bindings -> let newenv = if name == "" 
+                                            then bindings ++ cenv
+                                            else (name, Closure cenv name args body):bindings ++ cenv
+                               in evalenv body newenv
+                Err e -> Err e
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         (Ok e, _) -> Err ("Call received something that wasn't a Closure: " ++ show e)
