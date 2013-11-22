@@ -57,7 +57,7 @@ peek (tok:_) = Just tok
 
 -- parse a cell as a list of data, until reaching an RParn
 parseList :: [Token] -> Result ([Expr], [Token])
-parseList [] = Err "Expected RParn. Received unexpected EOF"
+parseList [] = Err "Expected RParn. Received unexpected EOF."
 parseList (RParn:toks) = Ok ([], toks)
 parseList toks = 
     case parseExpr toks of
@@ -68,8 +68,8 @@ parseArgList :: [Token] -> Result ([Arg], [Token])
 parseArgList [] = Err "Expected RParn. Received unexpected EOF"
 parseArgList (Sym sym:RParn:toks) = -- check for special ArgRest token
     case sym of
+        ('&':[]) -> Err "'&' cannot be used as a variable name by itself."
         ('&':rest) -> Ok (ArgRest rest:[], toks)
-        ('&':[]) -> Err "'&' cannot be used as a variable name by itself"
         rest -> Ok (ArgNamed rest:[], toks)
 parseArgList (RParn:toks) = Ok ([], toks)
 parseArgList (Sym sym:toks) = 
