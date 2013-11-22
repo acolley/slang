@@ -1,6 +1,7 @@
 module Eval (eval, hlist_to_slist, slist_to_hlist) where
 
 import Control.Applicative
+import Debug.Trace
 
 import Parser
 
@@ -79,7 +80,7 @@ evalenv (Snd e) env =
         Ok (Pair _ e2) -> Ok e2
         Err s -> Err s
         _ -> Err "Snd got something that isn't a Pair"
-evalenv (Add e1 e2) env = 
+evalenv (Add e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
         (Ok (Number v1), Ok (Number v2)) -> Ok (Number (v1 + v2))
         (Ok (Number v1), Ok Unit) -> Ok (Number v1)
@@ -138,7 +139,7 @@ evalenv (Call e1 es) env =
     in
     case (evalenv e1 env, all_or_none es env) of
         (Ok (Closure cenv name args body), Ok vals) ->
-            case applyArgs args es of
+            case applyArgs args vals of
                 Ok bindings -> let newenv = if name == "" 
                                             then bindings ++ cenv
                                             else (name, Closure cenv name args body):bindings ++ cenv
@@ -172,7 +173,7 @@ evalenv (Eq e1 e2) env =
         (_, _) -> Err ("Eq received something that wasn't a Number")
 
 eval :: Expr -> Result Expr
-eval expr = 
+eval expr =
     let env = [("+", slang_add), ("-", slang_sub), ("*", slang_mul), ("/", slang_div), ("fst", slang_fst), ("snd", slang_snd)]
     in evalenv expr env
 
