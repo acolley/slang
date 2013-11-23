@@ -16,7 +16,7 @@ data Token =
     deriving (Eq, Show)
 
 isSymbolStart :: Char -> Bool
-isSymbolStart c = isAlpha c || c `elem` "?-&*/!$^#~;:+"
+isSymbolStart c = isAlpha c || c `elem` "=<>?-&*/!$^#~;:+"
 
 isSymbolChar :: Char -> Bool
 isSymbolChar c = isSymbolStart c || isDigit c

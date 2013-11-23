@@ -9,7 +9,7 @@
 
 module Parser (
     Arg(ArgNamed, ArgRest),
-    Expr(Unit,Number,StrLit,StrCons,Boolean,Pair,IsPair,Fst,Snd,Add,Sub,Mul,Div,If,Var,Let,Fun,Closure,Call,IsUnit,Gt,Lt,Eq),
+    Expr(Unit,Number,Chr,StrLit,StrCons,Boolean,Pair,IsPair,Fst,Snd,Add,Sub,Mul,Div,If,Var,Let,Fun,Closure,Call,IsUnit,Gt,Lt,Eq),
     Env, 
     parse)
 where
@@ -26,6 +26,7 @@ data Arg = ArgNamed String | ArgRest String deriving (Eq, Show)
 data Expr = 
     Unit
     | Number Int
+    | Chr Char
     | StrLit String
     | StrCons Expr -- construct a string, syntax 'str' in fun position
     | Boolean Bool
@@ -54,8 +55,6 @@ type Env = [(String, Expr)]
 peek :: [Token] -> Maybe Token
 peek [] = Nothing
 peek (tok:_) = Just tok
-
--- parsePair :: [Token] -> Either String (Expr, [Token])
 
 -- parse a cell as a list of data, until reaching an RParn
 parseList :: [Token] -> Result ([Expr], [Token])
@@ -118,29 +117,51 @@ parseSub toks =
 
 parseFun :: [Token] -> Result (Expr, [Token])
 parseFun (LParn:toks) =
-    case parseArgList toks of
-        Ok (args, rest) -> case parseExpr rest of
-                               Ok (body, rest1) -> case rest1 of
-                                                       [] -> Err "Expected RParn. Received unexpected EOF"
-                                                       (RParn:rest2) -> Ok (Fun "" args body, rest2) -- consume RParn at end of Fun definition
-                                                       (tok:rest2) -> Err ("Expected RParn. Received: " ++ (show tok))
-                               Err s -> Err s
-        Err s -> Err s
+  case parseArgList toks of
+    Ok (args, rest) -> case parseExpr rest of
+                         Ok (body, rest1) -> case rest1 of
+                                               [] -> Err "Expected RParn. Received expected EOF"
+                                               (RParn:rest2) -> Ok (Fun "" args body, rest2) -- consume RParn at end of Fun definition
+                                               (tok:rest2) -> Err ("Expected RParn. Received: " ++ (show tok))
+                         Err s -> Err s
+    Err s -> Err s
 parseFun (tok:toks) = Err ("Expected LParn but received: " ++ (show tok))
 
---parseLet :: [Token] -> Either String (Expr, [Token])
---parseLet toks =
---    
---    case parseArgs toks of
---        Right (args, rest) -> case args of
-                                  
+parseIf :: [Token] -> Result (Expr, [Token])
+parseIf toks =
+  case parseList toks of
+    Ok (args, rest) -> case args of
+                         (e1:e2:e3:[]) -> Ok (If e1 e2 e3, rest)
+                         _ -> Err ("If expression takes 3 arguments. Received: " ++ (show (length args)))
+    Err e -> Err e
 
--- new parseSymbol function to be used with parseCall
--- should only return things that can be used in a Call expr
-parseSymbol :: [Token] -> Result (Expr, [Token])
-parseSymbol (Sym sym:toks) =
-    case sym of
-        _ -> Ok (Var sym, toks)
+parseLet :: [Token] -> Result (Expr, [Token])
+parseLet (Sym sym:toks) =
+  if sym `elem` ["let", "if", "fn", "def", "import"]
+  then Err (sym ++ " is a reserved word. It cannot be used in a let expression.")
+  else case parseList toks of
+    Ok (args, rest) -> case args of
+                         (e1:e2:[]) -> Ok (Let sym e1 e2, rest)
+                         _ -> Err ("Let expression takes 3 arguments. Received: " ++ (show ((length args) + 1)))
+    Err e -> Err e
+parseLet (tok:_) = Err ("let expected a Symbol. Received: " ++ (show tok))
+parseLet [] = Err "let expected a Symbol. Received unexpected EOF"
+
+-- a 'def' expands to a 'let' over the current tokens
+parseDef :: [Token] -> Result (Expr, [Token])
+parseDef (Sym sym:toks) =
+  if sym `elem` ["let", "if", "fn", "def", "import"]
+  then Err (sym ++ " is a reserved word. It cannot be used in a def.")
+  else case parseList toks of
+    Ok (args, rest) -> case args of
+                         (e1:[]) -> if null rest
+                                    then Ok (Unit, [])
+                                    else case parseExpr rest of
+                                      Ok (e2, toks1) -> Ok (Let sym e1 e2, toks1)
+                                      Err e -> Err e
+    Err e -> Err e
+parseDef (tok:_) = Err ("def expected a Symbol. Received: " ++ (show tok))
+parseDef [] = Err "def expected a Symbol. Received unexpected EOF"
 
 -- parse a cell as a function call
 parseCall :: [Token] -> Result (Expr, [Token])
@@ -152,13 +173,11 @@ parseCall (LParn:toks) =
 parseCall (Sym sym:toks) =
     case sym of
         -- we parse special forms here as we don't want to 'Call' these
-        -- "cons" -- create a Pair
-        -- "let"
-        -- "if"
+        "let" -> parseLet toks
+        "def" -> parseDef toks
+        "if" -> parseIf toks
         "fn" -> parseFun toks
-        _ -> case parseSymbol (Sym sym:toks) of
-                 Ok (e, rest) -> (\(es, ts) -> (Call e es, ts)) <$> parseList rest
-                 Err s -> Err s
+        _ -> (\(es, ts) -> (Call (Var sym) es, ts)) <$> parseList toks -- parse as symbol
 parseCall (tok:_) = Err ("Expected Symbol, LParn or Var but received: " ++ (show tok))
 
 parseExpr :: [Token] -> Result (Expr, [Token])

@@ -30,6 +30,12 @@ slang_div = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Div (Var "x") (Var "y"))
 slang_eq :: Expr
 slang_eq = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Eq (Var "x") (Var "y"))
 
+slang_gt :: Expr
+slang_gt = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Gt (Var "x") (Var "y"))
+
+slang_lt :: Expr
+slang_lt = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Lt (Var "x") (Var "y"))
+
 slang_cons :: Expr
 slang_cons = Closure [] "" [ArgNamed "fst", ArgNamed "snd"] (Pair (Var "fst") (Var "snd"))
 
@@ -72,6 +78,7 @@ slang_map =
             (Pair (Call (Var "f") [Fst (Var "xs")])
                   (Call (Var "map") [(Var "f"), Snd (Var "xs")]))))
 
+
 -- helper functions
 all_or_none :: [Expr] -> Env -> Result [Expr]
 all_or_none [] _ = Ok []
@@ -102,28 +109,36 @@ envlookup s ((v, e):xs) = if s == v then Just e else (envlookup s xs)
 evalenv :: Expr -> Env -> Result Expr
 evalenv Unit _ = Ok Unit
 evalenv (Number i) _  = Ok (Number i)
+evalenv (Chr c) _ = Ok (Chr c)
 evalenv (StrLit s) _ = Ok (StrLit s)
 evalenv (Boolean b) _ = Ok (Boolean b)
+evalenv (Fun name args body) env = Ok (Closure env name args body)
+evalenv (Closure env name args body) _ = Ok (Closure env name args body)
+
 evalenv (Pair e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
         (Ok v1, Ok v2) -> Ok (Pair v1 v2)
         (Err s, _) -> Err s
         (_, Err s) -> Err s
+
 evalenv (IsPair e) env =
     case evalenv e env of
         Ok (Pair _ _) -> Ok (Boolean True)
         Ok _ -> Ok (Boolean False)
         Err s -> Err s
+
 evalenv (Fst e) env =
     case evalenv e env of
         Ok (Pair e1 _) -> Ok e1
         Err s -> Err s
         _ -> Err "Fst got something that isn't a Pair"
+
 evalenv (Snd e) env =
     case evalenv e env of
         Ok (Pair _ e2) -> Ok e2
         Err s -> Err s
         _ -> Err "Snd got something that isn't a Pair"
+
 evalenv (Add e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
         (Ok (Number v1), Ok (Number v2)) -> Ok (Number (v1 + v2))
@@ -131,6 +146,7 @@ evalenv (Add e1 e2) env =
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         _ -> Err "Non-Number used in Add"
+
 evalenv (Sub e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
         (Ok (Number v1), Ok (Number v2)) -> Ok (Number (v1 - v2))
@@ -138,6 +154,7 @@ evalenv (Sub e1 e2) env =
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         _ -> Err "Non-Number used in Sub"
+
 evalenv (Mul e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
         (Ok (Number v1), Ok (Number v2)) -> Ok (Number (v1 * v2))
@@ -145,6 +162,7 @@ evalenv (Mul e1 e2) env =
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         _ -> Err "Non-Number used in Mul"
+
 evalenv (Div e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
         (Ok (Number v1), Ok (Number v2)) -> Ok (Number (v1 `div` v2))
@@ -152,21 +170,50 @@ evalenv (Div e1 e2) env =
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         _ -> Err "Non-Number used in Div"
+
 evalenv (If e1 e2 e3) env = 
     case (evalenv e1 env) of
         Ok (Boolean b) -> if b then (evalenv e2 env) else (evalenv e3 env)
         Err s -> Err s
         _ -> Err "Non-boolean used as If predicate"
+
 evalenv (Var s) env =
     case (envlookup s env) of
         Just e -> Ok e
         Nothing -> Err ("Unbound variable name: " ++ s)
+
 evalenv (Let s e1 e2) env =
     case evalenv e1 env of
         Ok v -> evalenv e2 ((s, v):env) -- eval e2 in the augmented environment containing 's'
         Err s -> Err s
-evalenv (Fun name args body) env = Ok (Closure env name args body)
-evalenv (Closure env name args body) _ = Ok (Closure env name args body)
+
+evalenv (IsUnit e) env =
+    case evalenv e env of
+        Ok Unit -> Ok (Boolean True)
+        Ok _ -> Ok (Boolean False)
+        Err s -> Err s
+
+evalenv (Gt e1 e2) env =
+    case (evalenv e1 env, evalenv e2 env) of
+        (Ok (Number v1), Ok (Number v2)) -> Ok (Boolean (v1 > v2))
+        (Err s, _) -> Err s
+        (_, Err s) -> Err s
+        (_, _) -> Err ("Gt received something that wasn't a Number")
+
+evalenv (Lt e1 e2) env =
+    case (evalenv e1 env, evalenv e2 env) of
+        (Ok (Number v1), Ok (Number v2)) -> Ok (Boolean (v1 < v2))
+        (Err s, _) -> Err s
+        (_, Err s) -> Err s
+        (_, _) -> Err ("Lt received something that wasn't a Number")
+        
+evalenv (Eq e1 e2) env =
+    case (evalenv e1 env, evalenv e2 env) of
+        (Ok (Number v1), Ok (Number v2)) -> Ok (Boolean (v1 == v2))
+        (Err s, _) -> Err s
+        (_, Err s) -> Err s
+        (_, _) -> Err ("Eq received something that wasn't a Number")
+
 evalenv (Call e1 es) env =
     -- TODO: evaluate args /after/ checking whether the number
     -- of expr parameters can be accepted by the called function
@@ -192,31 +239,8 @@ evalenv (Call e1 es) env =
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         (Ok e, _) -> Err ("Call received something that wasn't a Closure: " ++ show e)
-evalenv (IsUnit e) env =
-    case evalenv e env of
-        Ok Unit -> Ok (Boolean True)
-        Ok _ -> Ok (Boolean False)
-        Err s -> Err s
-evalenv (Gt e1 e2) env =
-    case (evalenv e1 env, evalenv e2 env) of
-        (Ok (Number v1), Ok (Number v2)) -> Ok (Boolean (v1 > v2))
-        (Err s, _) -> Err s
-        (_, Err s) -> Err s
-        (_, _) -> Err ("Gt received something that wasn't a Number")
-evalenv (Lt e1 e2) env =
-    case (evalenv e1 env, evalenv e2 env) of
-        (Ok (Number v1), Ok (Number v2)) -> Ok (Boolean (v1 < v2))
-        (Err s, _) -> Err s
-        (_, Err s) -> Err s
-        (_, _) -> Err ("Lt received something that wasn't a Number")
-evalenv (Eq e1 e2) env =
-    case (evalenv e1 env, evalenv e2 env) of
-        (Ok (Number v1), Ok (Number v2)) -> Ok (Boolean (v1 == v2))
-        (Err s, _) -> Err s
-        (_, Err s) -> Err s
-        (_, _) -> Err ("Eq received something that wasn't a Number")
 
 eval :: Expr -> Result Expr
 eval expr =
-    let env = [("+", slang_add), ("-", slang_sub), ("*", slang_mul), ("/", slang_div), ("=", slang_eq), ("cons", slang_cons), ("fst", slang_fst), ("snd", slang_snd), ("nil", Unit), ("nil?", slang_isnil),("list", slang_list), ("pair?", slang_ispair), ("list?", slang_islist), ("map", slang_map)]
+    let env = [("+", slang_add), ("-", slang_sub), ("*", slang_mul), ("/", slang_div), ("=", slang_eq), (">", slang_gt), ("<", slang_lt), ("cons", slang_cons), ("fst", slang_fst), ("snd", slang_snd), ("nil", Unit), ("nil?", slang_isnil),("list", slang_list), ("pair?", slang_ispair), ("list?", slang_islist), ("map", slang_map), ("#t", Boolean True), ("#f", Boolean False)]
     in evalenv expr env
