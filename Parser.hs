@@ -21,7 +21,7 @@ import Lexer
 
 import Utils
 
-data Arg = ArgNamed String | ArgRest String deriving (Show)
+data Arg = ArgNamed String | ArgRest String deriving (Eq, Show)
 
 data Expr = 
     Unit
@@ -47,7 +47,7 @@ data Expr =
     | Gt Expr Expr
     | Lt Expr Expr
     | Eq Expr Expr
-    deriving (Show)
+    deriving (Eq, Show)
 
 type Env = [(String, Expr)]
 

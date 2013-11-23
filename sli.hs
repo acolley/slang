@@ -10,5 +10,5 @@ main = do
     if null line
         then return ()
         else do
-            putStrLn $ interpret line
+            putStrLn $ show $ interpret line
             main

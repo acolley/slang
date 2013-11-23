@@ -6,4 +6,4 @@ import Interpret
 main = do
     args <- getArgs
     lines <- readFile $ head args
-    putStrLn $ interpret $ lines
+    putStrLn $ show $ interpret $ lines

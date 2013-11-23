@@ -2,7 +2,7 @@ module Utils (Result(Ok, Err), splitOn) where
 
 import Data.List
 
-data Result a = Ok a | Err String deriving(Show)
+data Result a = Ok a | Err String deriving (Eq, Show)
 
 instance Functor Result where
     fmap f (Ok a) = Ok (f a)

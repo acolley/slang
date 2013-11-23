@@ -13,7 +13,7 @@ data Token =
     | Num Int
     | Str String
     | Sym String
-    deriving (Show)
+    deriving (Eq, Show)
 
 isSymbolStart :: Char -> Bool
 isSymbolStart c = isAlpha c || c `elem` "?-&*/!$^#~;:+"
