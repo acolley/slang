@@ -7,40 +7,7 @@ import Parser
 
 import Utils
 
--- Built-in functions
 
-slang_fst :: Expr
-slang_fst = Closure [] "" [ArgNamed "pr"] (Fst (Var "pr"))
-
-slang_snd :: Expr
-slang_snd = Closure [] "" [ArgNamed "pr"] (Snd (Var "pr"))
-
-slang_add :: Expr
-slang_add = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Add (Var "x") (Var "y"))
-
-slang_sub :: Expr
-slang_sub = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Sub (Var "x") (Var "y"))
-
-slang_mul :: Expr
-slang_mul = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Mul (Var "x") (Var "y"))
-
-slang_div :: Expr
-slang_div = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Div (Var "x") (Var "y"))
-
-slang_eq :: Expr
-slang_eq = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Eq (Var "x") (Var "y"))
-
-slang_gt :: Expr
-slang_gt = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Gt (Var "x") (Var "y"))
-
-slang_lt :: Expr
-slang_lt = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Lt (Var "x") (Var "y"))
-
-slang_cons :: Expr
-slang_cons = Closure [] "" [ArgNamed "fst", ArgNamed "snd"] (Pair (Var "fst") (Var "snd"))
-
-slang_isnil :: Expr
-slang_isnil = Closure [] "" [ArgNamed "x"] (IsUnit (Var "x"))
 
 -- when modules are supported, move these to an
 -- implementation written in slang itself
@@ -77,6 +44,81 @@ slang_map =
             Unit 
             (Pair (Call (Var "f") [Fst (Var "xs")])
                   (Call (Var "map") [(Var "f"), Snd (Var "xs")]))))
+
+slang_foldl :: Expr
+slang_foldl =
+    (Closure [] "foldl" [ArgNamed "f", ArgNamed "base", ArgNamed "xs"]
+        (If (IsUnit (Var "xs"))
+            (Var "base")
+            (Call (Var "foldl") [Var "f", (Call (Var "f") [Var "base", (Fst (Var "xs"))]), (Snd (Var "xs"))])))
+
+slang_foldr :: Expr
+slang_foldr =
+    (Closure [] "foldr" [ArgNamed "f", ArgNamed "base", ArgNamed "xs"]
+        (If (IsUnit (Var "xs"))
+            (Var "base")
+            (Call (Var "f") [Fst (Var "xs"), (Call (Var "foldr") [Var "f", Var "base", (Snd (Var "xs"))])])))
+
+slang_len :: Expr
+slang_len =
+    (Closure [] "len" [ArgNamed "xs"]
+        (If (IsUnit (Var "xs"))
+            (Number 0)
+            (Add (Number 1) (Call (Var "len") [Snd (Var "xs")]))))
+
+-- Built-in functions
+
+slang_fst :: Expr
+slang_fst = Closure [] "" [ArgNamed "pr"] (Fst (Var "pr"))
+
+slang_snd :: Expr
+slang_snd = Closure [] "" [ArgNamed "pr"] (Snd (Var "pr"))
+
+slang_add :: Expr
+slang_add = 
+    (Closure [] "" [ArgNamed "x", ArgRest "xs"]
+        (If (IsUnit (Var "xs"))
+            (Var "x")
+            (Call slang_foldl [Fun "" [ArgNamed "acc", ArgNamed "y"] (Add (Var "acc") (Var "y")), (Var "x"), (Var "xs")])))
+
+slang_sub :: Expr
+slang_sub = 
+    (Closure [] "" [ArgNamed "x", ArgRest "xs"]
+        (If (IsUnit (Var "xs"))
+            (Sub (Number 0) (Var "x"))
+            (Call slang_foldl [Fun "" [ArgNamed "acc", ArgNamed "y"] (Sub (Var "acc") (Var "y")), (Var "x"), (Var "xs")])))
+
+slang_mul :: Expr
+slang_mul = 
+    (Closure [] "" [ArgNamed "x", ArgRest "xs"]
+        (If (IsUnit (Var "xs"))
+            (Var "x")
+            (Call slang_foldl [Fun "" [ArgNamed "acc", ArgNamed "y"] (Mul (Var "acc") (Var "y")), (Var "x"), (Var "xs")])))
+
+slang_div :: Expr
+slang_div = 
+    (Closure [] "" [ArgNamed "x", ArgRest "xs"]
+        (If (IsUnit (Var "xs"))
+            (Var "x")
+            (Call slang_foldl [Fun "" [ArgNamed "acc", ArgNamed "y"] (Div (Var "acc") (Var "y")), (Var "x"), (Var "xs")])))
+
+slang_eq :: Expr
+slang_eq = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Eq (Var "x") (Var "y"))
+
+slang_gt :: Expr
+slang_gt = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Gt (Var "x") (Var "y"))
+
+slang_lt :: Expr
+slang_lt = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Lt (Var "x") (Var "y"))
+
+slang_not :: Expr
+slang_not = Closure [] "" [ArgNamed "x"] (Not (Var "x"))
+
+slang_cons :: Expr
+slang_cons = Closure [] "" [ArgNamed "fst", ArgNamed "snd"] (Pair (Var "fst") (Var "snd"))
+
+slang_isnil :: Expr
+slang_isnil = Closure [] "" [ArgNamed "x"] (IsUnit (Var "x"))
 
 
 -- helper functions
@@ -142,7 +184,6 @@ evalenv (Snd e) env =
 evalenv (Add e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
         (Ok (Number v1), Ok (Number v2)) -> Ok (Number (v1 + v2))
-        (Ok (Number v1), Ok Unit) -> Ok (Number v1)
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         _ -> Err "Non-Number used in Add"
@@ -150,7 +191,6 @@ evalenv (Add e1 e2) env =
 evalenv (Sub e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
         (Ok (Number v1), Ok (Number v2)) -> Ok (Number (v1 - v2))
-        (Ok (Number v1), Ok Unit) -> Ok (Number (-v1))
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         _ -> Err "Non-Number used in Sub"
@@ -158,7 +198,6 @@ evalenv (Sub e1 e2) env =
 evalenv (Mul e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
         (Ok (Number v1), Ok (Number v2)) -> Ok (Number (v1 * v2))
-        (Ok (Number v1), Ok Unit) -> Ok (Number v1)
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         _ -> Err "Non-Number used in Mul"
@@ -166,7 +205,6 @@ evalenv (Mul e1 e2) env =
 evalenv (Div e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
         (Ok (Number v1), Ok (Number v2)) -> Ok (Number (v1 `div` v2))
-        (Ok (Number v1), Ok Unit) -> Ok (Number v1)
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         _ -> Err "Non-Number used in Div"
@@ -206,13 +244,19 @@ evalenv (Lt e1 e2) env =
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         (_, _) -> Err ("Lt received something that wasn't a Number")
-        
+
 evalenv (Eq e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
         (Ok (Number v1), Ok (Number v2)) -> Ok (Boolean (v1 == v2))
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         (_, _) -> Err ("Eq received something that wasn't a Number")
+
+evalenv (Not e) env =
+    case evalenv e env of
+        Ok (Boolean b) -> Ok (Boolean (not b))
+        Ok _ -> Err ("not applied to Non-boolean")
+        Err s -> Err s
 
 evalenv (Call e1 es) env =
     -- TODO: evaluate args /after/ checking whether the number
@@ -242,5 +286,5 @@ evalenv (Call e1 es) env =
 
 eval :: Expr -> Result Expr
 eval expr =
-    let env = [("+", slang_add), ("-", slang_sub), ("*", slang_mul), ("/", slang_div), ("=", slang_eq), (">", slang_gt), ("<", slang_lt), ("cons", slang_cons), ("fst", slang_fst), ("snd", slang_snd), ("nil", Unit), ("nil?", slang_isnil),("list", slang_list), ("pair?", slang_ispair), ("list?", slang_islist), ("map", slang_map), ("#t", Boolean True), ("#f", Boolean False)]
+    let env = [("+", slang_add), ("-", slang_sub), ("*", slang_mul), ("/", slang_div), ("=", slang_eq), (">", slang_gt), ("<", slang_lt), ("not", slang_not), ("cons", slang_cons), ("fst", slang_fst), ("snd", slang_snd), ("nil", Unit), ("nil?", slang_isnil),("list", slang_list), ("pair?", slang_ispair), ("list?", slang_islist), ("map", slang_map), ("#t", Boolean True), ("#f", Boolean False), ("foldl", slang_foldl), ("foldr", slang_foldr), ("len", slang_len)]
     in evalenv expr env

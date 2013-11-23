@@ -9,7 +9,7 @@
 
 module Parser (
     Arg(ArgNamed, ArgRest),
-    Expr(Unit,Number,Chr,StrLit,StrCons,Boolean,Pair,IsPair,Fst,Snd,Add,Sub,Mul,Div,If,Var,Let,Fun,Closure,Call,IsUnit,Gt,Lt,Eq),
+    Expr(Unit,Number,Chr,StrLit,StrCons,Boolean,Pair,IsPair,Fst,Snd,Add,Sub,Mul,Div,If,Var,Let,Fun,Closure,Call,IsUnit,Gt,Lt,Eq,Not),
     Env, 
     parse)
 where
@@ -49,6 +49,7 @@ data Expr =
     | Gt Expr Expr
     | Lt Expr Expr
     | Eq Expr Expr
+    | Not Expr
     deriving (Eq, Show)
 
 type Env = [(String, Expr)]
