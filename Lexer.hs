@@ -15,8 +15,14 @@ data Token =
     | Sym String
     deriving (Eq, Show)
 
+isComment :: Char -> Bool
+isComment c = c == ';'
+
+isEOL :: Char -> Bool
+isEOL c = c `elem` "\n\r"
+
 isSymbolStart :: Char -> Bool
-isSymbolStart c = isAlpha c || c `elem` "=<>?-&*/!$^#~;:+"
+isSymbolStart c = isAlpha c || c `elem` "=<>?-&*/!$^#~:+"
 
 isSymbolChar :: Char -> Bool
 isSymbolChar c = isSymbolStart c || isDigit c
@@ -48,6 +54,7 @@ lexer (c:str)
     | isSymbolStart c = case lexSymbol (c:str) of
                             Ok (sym, rest) -> (sym:) <$> lexer rest
                             Err s -> Err s
+    | isComment c = lexer $ dropWhile (\x -> not (isEOL x)) str
     | isSpace c = lexer $ dropWhile isSpace str
     | otherwise = lexer str
 

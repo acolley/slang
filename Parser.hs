@@ -26,6 +26,7 @@ data Arg = ArgNamed String | ArgRest String deriving (Eq, Show)
 data Expr = 
     Unit
     | Number Int
+    | Symbol String
     | Chr Char
     | StrLit String
     | StrCons Expr -- construct a string, syntax 'str' in fun position
