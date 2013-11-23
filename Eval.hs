@@ -9,16 +9,12 @@ import Utils
 
 -- Built-in functions
 
---slang_add :: Expr
---slang_add = Closure [] "" [
-
 slang_fst :: Expr
 slang_fst = Closure [] "" [ArgNamed "pr"] (Fst (Var "pr"))
 
 slang_snd :: Expr
 slang_snd = Closure [] "" [ArgNamed "pr"] (Snd (Var "pr"))
 
--- TODO: eventually support variable argument list
 slang_add :: Expr
 slang_add = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Add (Var "x") (Var "y"))
 
@@ -31,9 +27,34 @@ slang_mul = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Mul (Var "x") (Var "y"))
 slang_div :: Expr
 slang_div = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Div (Var "x") (Var "y"))
 
---slang_cons :: Expr
---slang_cons = Closure [] "" ["fst"] (Fun "" "snd" (Pair (Var "fst") (Var "snd")))
-    
+slang_cons :: Expr
+slang_cons = Closure [] "" [ArgNamed "fst", ArgNamed "snd"] (Pair (Var "fst") (Var "snd"))
+
+slang_isnil :: Expr
+slang_isnil = Closure [] "" [ArgNamed "x"] (IsUnit (Var "x"))
+
+-- when modules are supported, move these to an
+-- implementation written in slang itself
+
+slang_ispair :: Expr
+slang_ispair = Closure [] "" [ArgNamed "x"] (IsPair (Var "x"))
+
+-- this might be faster to keep implemented directly
+-- in haskell code
+-- note: ArgRest handles the conversion of a list of
+-- argument expressions to a slang list
+slang_list :: Expr
+slang_list = Closure [] "" [ArgRest "xs"] (Var "xs")
+
+-- a list in slang is defined as a nested pair whose
+-- final 'snd' element is Unit (nil)
+--slang_islist :: Expr
+--slang_islist = Closure [] "" [ArgNamed "x"] (If (IsUnit (Var "x")) (Boolean True) )
+
+--slang_map :: Expr
+--slang_map = Closure [] "" []
+
+-- helper functions
 all_or_none :: [Expr] -> Env -> Result [Expr]
 all_or_none [] _ = Ok []
 all_or_none (e:es) env =
@@ -70,6 +91,11 @@ evalenv (Pair e1 e2) env =
         (Ok v1, Ok v2) -> Ok (Pair v1 v2)
         (Err s, _) -> Err s
         (_, Err s) -> Err s
+evalenv (IsPair e) env =
+    case evalenv e env of
+        Ok (Pair _ _) -> Ok (Boolean True)
+        Ok _ -> Ok (Boolean False)
+        Err s -> Err s
 evalenv (Fst e) env =
     case evalenv e env of
         Ok (Pair e1 _) -> Ok e1
@@ -174,12 +200,8 @@ evalenv (Eq e1 e2) env =
 
 eval :: Expr -> Result Expr
 eval expr =
-    let env = [("+", slang_add), ("-", slang_sub), ("*", slang_mul), ("/", slang_div), ("fst", slang_fst), ("snd", slang_snd)]
+    let env = [("+", slang_add), ("-", slang_sub), ("*", slang_mul), ("/", slang_div), ("cons", slang_cons), ("fst", slang_fst), ("snd", slang_snd), ("nil", Unit), ("nil?", slang_isnil),("list", slang_list), ("pair?", slang_ispair)]
     in evalenv expr env
-
--- TODO: Need some way to support variable numbers of arguments
---slang_add :: Expr
---slang_add = (Fun "" "x")
 
 --mymap :: Expr
 --mymap = 

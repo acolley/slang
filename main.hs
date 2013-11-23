@@ -23,7 +23,10 @@ ext f (Ok expr) = f expr
 --main = putStrLn $ show $ eval (Call (Fun "" ["x", "y"] (Add (Var "x") (Var "y"))) [Number 10, Number 20]) -- test multi argument functions
 --main = putStrLn $ show $ eval (Call (Var "+") [Number 1, Number 1])
 --main = putStrLn $ show $ hlist_to_slist [Number 10, Number 20, Number 30]
-main = putStrLn $ show $ slist_to_hlist (hlist_to_slist [Number 10, Number 20, Number 30])
+--main = putStrLn $ show $ slist_to_hlist (hlist_to_slist [Number 10, Number 20, Number 30])
+--main = putStrLn $ show $ eval (Call (Var "nil?") [(Unit)])
+--main = putStrLn $ show $ eval (Call (Var "list") [Number 1, Number 2, Number 3])
+main = putStrLn $ show $ eval (Call (Var "pair?") [Pair (Number 1) (Number 2)])
 
 
 parseArgs :: [String] -> IO ()

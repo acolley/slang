@@ -9,7 +9,7 @@
 
 module Parser (
     Arg(ArgNamed, ArgRest),
-    Expr(Unit,Number,StrLit,Boolean,Pair,Fst,Snd,Add,Sub,Mul,Div,If,Var,Let,Fun,Closure,Call,IsUnit,Gt,Lt,Eq),
+    Expr(Unit,Number,StrLit,StrCons,Boolean,Pair,IsPair,Fst,Snd,Add,Sub,Mul,Div,If,Var,Let,Fun,Closure,Call,IsUnit,Gt,Lt,Eq),
     Env, 
     parse)
 where
@@ -27,8 +27,10 @@ data Expr =
     Unit
     | Number Int
     | StrLit String
+    | StrCons Expr -- construct a string, syntax 'str' in fun position
     | Boolean Bool
     | Pair Expr Expr
+    | IsPair Expr
     | Fst Expr
     | Snd Expr
     | Add Expr Expr
@@ -119,8 +121,9 @@ parseFun (LParn:toks) =
     case parseArgList toks of
         Ok (args, rest) -> case parseExpr rest of
                                Ok (body, rest1) -> case rest1 of
-                                                       RParn:rest2 -> Ok (Fun "" args body, rest2) -- consume RParn at end of Fun definition
-                                                       tok:rest2 -> Err ("Expected RParn. Received: " ++ (show tok))
+                                                       [] -> Err "Expected RParn. Received unexpected EOF"
+                                                       (RParn:rest2) -> Ok (Fun "" args body, rest2) -- consume RParn at end of Fun definition
+                                                       (tok:rest2) -> Err ("Expected RParn. Received: " ++ (show tok))
                                Err s -> Err s
         Err s -> Err s
 parseFun (tok:toks) = Err ("Expected LParn but received: " ++ (show tok))
