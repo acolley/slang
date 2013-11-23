@@ -27,6 +27,9 @@ slang_mul = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Mul (Var "x") (Var "y"))
 slang_div :: Expr
 slang_div = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Div (Var "x") (Var "y"))
 
+slang_eq :: Expr
+slang_eq = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Eq (Var "x") (Var "y"))
+
 slang_cons :: Expr
 slang_cons = Closure [] "" [ArgNamed "fst", ArgNamed "snd"] (Pair (Var "fst") (Var "snd"))
 
@@ -48,11 +51,26 @@ slang_list = Closure [] "" [ArgRest "xs"] (Var "xs")
 
 -- a list in slang is defined as a nested pair whose
 -- final 'snd' element is Unit (nil)
---slang_islist :: Expr
---slang_islist = Closure [] "" [ArgNamed "x"] (If (IsUnit (Var "x")) (Boolean True) )
+-- NOTE: might be inefficient on large lists, if there
+-- is a way to write this directly in haskell and just
+-- check the final 'snd' pair using haskell pattern matching
+-- this would be a lot faster
+slang_islist :: Expr
+slang_islist = 
+    (Closure [] "list?" [ArgNamed "x"] 
+        (If (IsPair (Var "x")) 
+            (If (IsUnit (Snd (Var "x"))) 
+                (Boolean True) 
+                (Call (Var "list?") [(Snd (Var "x"))])) 
+            (Boolean False)))
 
---slang_map :: Expr
---slang_map = Closure [] "" []
+slang_map :: Expr
+slang_map = 
+    (Closure [] "map" [ArgNamed "f", ArgNamed "xs"] 
+        (If (IsUnit (Var "xs"))
+            Unit 
+            (Pair (Call (Var "f") [Fst (Var "xs")])
+                  (Call (Var "map") [(Var "f"), Snd (Var "xs")]))))
 
 -- helper functions
 all_or_none :: [Expr] -> Env -> Result [Expr]
@@ -200,16 +218,5 @@ evalenv (Eq e1 e2) env =
 
 eval :: Expr -> Result Expr
 eval expr =
-    let env = [("+", slang_add), ("-", slang_sub), ("*", slang_mul), ("/", slang_div), ("cons", slang_cons), ("fst", slang_fst), ("snd", slang_snd), ("nil", Unit), ("nil?", slang_isnil),("list", slang_list), ("pair?", slang_ispair)]
+    let env = [("+", slang_add), ("-", slang_sub), ("*", slang_mul), ("/", slang_div), ("=", slang_eq), ("cons", slang_cons), ("fst", slang_fst), ("snd", slang_snd), ("nil", Unit), ("nil?", slang_isnil),("list", slang_list), ("pair?", slang_ispair), ("list?", slang_islist), ("map", slang_map)]
     in evalenv expr env
-
---mymap :: Expr
---mymap = 
---    (Fun "_map" "f" 
---        (Fun "" "xs"
---            (If (IsUnit (Var "xs")) 
---                Unit 
---                (Pair (Call (Var "f") (Fst (Var "xs"))) 
---                      (Call (Call (Var "_map") (Var "f")) (Snd (Var "xs")))))))
-
-main = putStrLn $ show $ eval (Eq (Number 10) (Number 10))

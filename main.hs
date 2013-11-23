@@ -26,7 +26,10 @@ ext f (Ok expr) = f expr
 --main = putStrLn $ show $ slist_to_hlist (hlist_to_slist [Number 10, Number 20, Number 30])
 --main = putStrLn $ show $ eval (Call (Var "nil?") [(Unit)])
 --main = putStrLn $ show $ eval (Call (Var "list") [Number 1, Number 2, Number 3])
-main = putStrLn $ show $ eval (Call (Var "pair?") [Pair (Number 1) (Number 2)])
+--main = putStrLn $ show $ eval (Call (Var "pair?") [Pair (Number 1) (Number 2)])
+--main = putStrLn $ show $ eval (Call (Var "=") [Number 1, Number 1])
+--main = putStrLn $ show $ eval (Call (Var "list?") [(hlist_to_slist [Number 1, Number 2, Number 3])])
+main = putStrLn $ show $ eval (Call (Var "map") [(Fun "" [ArgNamed "x"] (Add (Var "x") (Number 1))), (hlist_to_slist [Number 1, Number 2, Number 3])])
 
 
 parseArgs :: [String] -> IO ()
