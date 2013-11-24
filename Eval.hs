@@ -102,8 +102,26 @@ slang_div =
             (Var "x")
             (Call slang_foldl [Fun "" [ArgNamed "acc", ArgNamed "y"] (Div (Var "acc") (Var "y")), (Var "x"), (Var "xs")])))
 
+--slang_eq :: Expr
+--slang_eq = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Eq (Var "x") (Var "y"))
+
 slang_eq :: Expr
-slang_eq = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Eq (Var "x") (Var "y"))
+slang_eq = 
+    (Closure [] "" [ArgNamed "x", ArgRest "xs"]
+        (If (IsUnit (Var "xs"))
+            (Boolean True)
+            (If 
+                (Call slang_foldl [
+                    Fun "" [ArgNamed "acc", ArgNamed "y"] 
+                        (If (Var "acc") 
+                            (If (Eq (Var "y") (Var "acc")) 
+                                (Var "y") 
+                                (Boolean False))
+                            (Boolean False)), 
+                    (Var "x"), 
+                    (Var "xs")])
+                (Boolean True) 
+                (Boolean False))))
 
 slang_gt :: Expr
 slang_gt = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Gt (Var "x") (Var "y"))
@@ -211,9 +229,9 @@ evalenv (Div e1 e2) env =
 
 evalenv (If e1 e2 e3) env = 
     case (evalenv e1 env) of
-        Ok (Boolean b) -> if b then (evalenv e2 env) else (evalenv e3 env)
+        Ok (Boolean False) -> evalenv e3 env
+        Ok _ -> evalenv e2 env
         Err s -> Err s
-        _ -> Err "Non-boolean used as If predicate"
 
 evalenv (Var s) env =
     case (envlookup s env) of
