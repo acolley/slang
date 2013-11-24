@@ -138,6 +138,9 @@ slang_cons = Closure [] "" [ArgNamed "fst", ArgNamed "snd"] (Pair (Var "fst") (V
 slang_isnil :: Expr
 slang_isnil = Closure [] "" [ArgNamed "x"] (IsUnit (Var "x"))
 
+slang_str :: Expr
+slang_str = Closure [] "" [ArgNamed "x"] (StrCons (Var "x"))
+
 
 -- helper functions
 all_or_none :: [Expr] -> Env -> Result [Expr]
@@ -158,6 +161,21 @@ slist_to_hlist :: Expr -> [Expr]
 slist_to_hlist Unit = []
 slist_to_hlist (Pair e1 e2) = e1:slist_to_hlist e2
 
+-- convert an expression value to a string
+to_string :: Expr -> Result Expr
+to_string Unit = Ok (Str "nil")
+to_string (Number i) = Ok (Str (show i))
+to_string (Str s) = Ok (Str s)
+to_string (Boolean b) = Ok (Str (if b then "#t" else "#f"))
+to_string (Fun _ _ _) = Ok (Str "fn")
+to_string (Closure _ _ _ _) = Ok (Str "fn")
+to_string (Pair v1 v2) = 
+    case (to_string v1, to_string v2) of
+        (Ok (Str s1), Ok (Str s2)) -> Ok (Str ("(" ++ s1 ++ "," ++ s2 ++ ")"))
+        (Err e, _) -> Err e
+        (_, Err e) -> Err e
+to_string _ = Err "Cannot convert expression to string"
+
 
 -- having an environment represented with a list of (String, Expr) pairs
 -- automatically achieves 'shadowing' for bound variables if you add and
@@ -170,7 +188,7 @@ evalenv :: Expr -> Env -> Result Expr
 evalenv Unit _ = Ok Unit
 evalenv (Number i) _  = Ok (Number i)
 evalenv (Chr c) _ = Ok (Chr c)
-evalenv (StrLit s) _ = Ok (StrLit s)
+evalenv (Str s) _ = Ok (Str s)
 evalenv (Boolean b) _ = Ok (Boolean b)
 evalenv (Fun name args body) env = Ok (Closure env name args body)
 evalenv (Closure env name args body) _ = Ok (Closure env name args body)
@@ -276,6 +294,12 @@ evalenv (Not e) env =
         Ok _ -> Err ("not applied to Non-boolean")
         Err s -> Err s
 
+-- convert an expression to a Str expression
+evalenv (StrCons e) env =
+    case evalenv e env of
+        (Ok v) -> to_string v
+        Err s -> Err s
+
 evalenv (Call e1 es) env =
     -- TODO: evaluate args /after/ checking whether the number
     -- of expr parameters can be accepted by the called function
@@ -304,5 +328,5 @@ evalenv (Call e1 es) env =
 
 eval :: Expr -> Result Expr
 eval expr =
-    let env = [("+", slang_add), ("-", slang_sub), ("*", slang_mul), ("/", slang_div), ("=", slang_eq), (">", slang_gt), ("<", slang_lt), ("not", slang_not), ("cons", slang_cons), ("fst", slang_fst), ("snd", slang_snd), ("nil", Unit), ("nil?", slang_isnil),("list", slang_list), ("pair?", slang_ispair), ("list?", slang_islist), ("map", slang_map), ("#t", Boolean True), ("#f", Boolean False), ("foldl", slang_foldl), ("foldr", slang_foldr), ("len", slang_len)]
+    let env = [("+", slang_add), ("-", slang_sub), ("*", slang_mul), ("/", slang_div), ("=", slang_eq), (">", slang_gt), ("<", slang_lt), ("not", slang_not), ("cons", slang_cons), ("str", slang_str), ("fst", slang_fst), ("snd", slang_snd), ("nil", Unit), ("nil?", slang_isnil),("list", slang_list), ("pair?", slang_ispair), ("list?", slang_islist), ("map", slang_map), ("#t", Boolean True), ("#f", Boolean False), ("foldl", slang_foldl), ("foldr", slang_foldr), ("len", slang_len)]
     in evalenv expr env

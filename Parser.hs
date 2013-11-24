@@ -9,7 +9,7 @@
 
 module Parser (
     Arg(ArgNamed, ArgRest),
-    Expr(Unit,Number,Chr,StrLit,StrCons,Boolean,Pair,IsPair,Fst,Snd,Add,Sub,Mul,Div,If,Var,Let,Fun,Closure,Call,IsUnit,Gt,Lt,Eq,Not),
+    Expr(Unit,Number,Chr,Str,StrCons,Boolean,Pair,IsPair,Fst,Snd,Add,Sub,Mul,Div,If,Var,Let,Fun,Closure,Call,IsUnit,Gt,Lt,Eq,Not),
     Env, 
     parse)
 where
@@ -28,8 +28,8 @@ data Expr =
     | Number Int
     | Symbol String
     | Chr Char
-    | StrLit String
-    | StrCons Expr -- construct a string, syntax 'str' in fun position
+    | Str String
+    | StrCons Expr -- convert the expression into a Str expression
     | Boolean Bool
     | Pair Expr Expr
     | IsPair Expr
@@ -207,7 +207,7 @@ parseCall (tok:_) = Err ("Call expected Symbol, LParn or Var but received: " ++ 
 parseExpr :: [Token] -> Result (Expr, [Token])
 parseExpr [] = Err "Expr: Unexpected EOF"
 parseExpr (Num v:toks) = Ok (Number v, toks)
-parseExpr (Str s:toks) = Ok (StrLit s, toks)
+parseExpr (StrLit s:toks) = Ok (Str s, toks)
 parseExpr (Sym s:toks) = Ok (Var s, toks)
 parseExpr (LParn:toks) = parseCall toks
 

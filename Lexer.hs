@@ -1,4 +1,4 @@
-module Lexer ( Token(LParn,RParn,Num,Str,Sym), lexer ) where
+module Lexer ( Token(LParn,RParn,Num,StrLit,Sym), lexer ) where
 
 import Control.Applicative
 import Data.Char
@@ -11,7 +11,7 @@ data Token =
     | RParn
 --    | Quote
     | Num Int
-    | Str String
+    | StrLit String
     | Sym String
     deriving (Eq, Show)
 
@@ -30,7 +30,7 @@ isSymbolChar c = isSymbolStart c || isDigit c
 lexStr :: String -> Result (Token, String)
 lexStr str = 
     case splitOn '"' str of
-        Just (pre, post) -> Ok (Str pre, (tail post))
+        Just (pre, post) -> Ok (StrLit pre, (tail post))
         Nothing -> Err "Expected closing quote"
 
 lexDigit :: String -> Result (Token, String)
