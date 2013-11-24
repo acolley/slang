@@ -81,42 +81,6 @@ parseArgList (Sym sym:toks) =
     else (\(args, rest) -> (ArgNamed sym:args, rest)) <$> parseArgList toks
 parseArgList (tok:toks) = Err ("Expected Symbol. Received: " ++ (show tok))
 
-parseMul :: [Token] -> Result (Expr, [Token])
-parseMul toks =
-    case parseList toks of
-        Ok (args, rest) -> case args of
-                               a:b:xs -> Ok (foldl (\(Mul x y) z -> Mul (Mul x y) z) (Mul a b) xs, rest)
-                               a:[] -> Ok (Mul a Unit, rest)
-                               _ -> Err "Mul takes at least one argument"
-        Err s -> Err s
-
-parseDiv :: [Token] -> Result (Expr, [Token])
-parseDiv toks =
-    case parseList toks of
-        Ok (args, rest) -> case args of
-                               a:b:xs -> Ok (foldl (\(Div x y) z -> Div (Div x y) z) (Div a b) xs, rest)
-                               a:[] -> Ok (Div a Unit, rest)
-                               _ -> Err "Div takes at least one argument"
-        Err s -> Err s
-
-parseAdd :: [Token] -> Result (Expr, [Token])
-parseAdd toks =
-    case parseList toks of
-        Ok (args, rest) -> case args of
-                               a:b:xs -> Ok (foldl (\(Add x y) z -> Add (Add x y) z) (Add a b) xs, rest)
-                               a:[] -> Ok (Add a Unit, rest)
-                               _ -> Err "Add takes at least one argument"
-        Err s -> Err s
-
-parseSub :: [Token] -> Result (Expr, [Token])
-parseSub toks =
-    case parseList toks of
-        Ok (args, rest) -> case args of
-                               a:b:xs -> Ok (foldl (\(Sub x y) z -> Sub (Sub x y) z) (Sub a b) xs, rest)
-                               a:[] -> Ok (Sub a Unit, rest)
-                               _ -> Err "Sub takes at least one argument"
-        Err s -> Err s
-
 parseFun :: [Token] -> Result (Expr, [Token])
 parseFun (LParn:toks) =
   case parseArgList toks of

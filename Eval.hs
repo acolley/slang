@@ -102,9 +102,6 @@ slang_div =
             (Var "x")
             (Call slang_foldl [Fun "" [ArgNamed "acc", ArgNamed "y"] (Div (Var "acc") (Var "y")), (Var "x"), (Var "xs")])))
 
---slang_eq :: Expr
---slang_eq = Closure [] "" [ArgNamed "x", ArgNamed "y"] (Eq (Var "x") (Var "y"))
-
 slang_eq :: Expr
 slang_eq = 
     (Closure [] "" [ArgNamed "x", ArgRest "xs"]
