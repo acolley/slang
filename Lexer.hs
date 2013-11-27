@@ -45,15 +45,15 @@ lexer ('(' : str) = (LParn:) <$> lexer str
 lexer (')' : str) = (RParn:) <$> lexer str
 -- lexer ('\'':str) = Quote:lexer str
 lexer (c:str)
-    | isDigit c = case lexDigit (c:str) of
-                      Ok (num, rest) -> (num:) <$> lexer rest
-                      Err s -> Err s
-    | c == '"' = case lexStr str of
-                     Ok (tok, rest) -> (tok:) <$> lexer rest
-                     Err s -> Err s
-    | isSymbolStart c = case lexSymbol (c:str) of
-                            Ok (sym, rest) -> (sym:) <$> lexer rest
-                            Err s -> Err s
+    | isDigit c = do
+        (num, rest) <- lexDigit (c:str)
+        (num:) <$> lexer rest
+    | c == '"' = do
+        (tok, rest) <- lexStr str
+        (tok:) <$> lexer rest
+    | isSymbolStart c = do
+        (sym, rest) <- lexSymbol (c:str)
+        (sym:) <$> lexer rest
     | isComment c = lexer $ dropWhile (\x -> not (isEOL x)) str
     | isSpace c = lexer $ dropWhile isSpace str
     | otherwise = lexer str
