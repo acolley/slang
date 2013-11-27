@@ -142,12 +142,10 @@ slang_str = Closure [] "" [ArgNamed "x"] (StrCons (Var "x"))
 -- helper functions
 all_or_none :: [Expr] -> Env -> Result [Expr]
 all_or_none [] _ = Ok []
-all_or_none (e:es) env =
-    case evalenv e env of
-        Ok applied -> case all_or_none es env of
-                          Ok rest -> Ok (applied:rest)
-                          Err s -> Err s
-        Err s -> Err s
+all_or_none (e:es) env = do
+    applied <- evalenv e env
+    rest <- all_or_none es env
+    return (applied:rest)
 
 -- convert a haskell list to a slang list
 hlist_to_slist :: [Expr] -> Expr
