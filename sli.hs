@@ -4,8 +4,8 @@ import System.IO
 import Interpret
 
 main = do
---    putStr ">>>"
---    hFlush stdout
+    putStr "> "
+    hFlush stdout
     line <- getLine
     if null line
         then return ()
