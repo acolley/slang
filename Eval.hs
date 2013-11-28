@@ -305,9 +305,9 @@ evalenv (Call e1 es) env =
         applyArgs (ArgRest s:[]) [] = Ok [(s, Unit)]
         applyArgs (ArgRest s:[]) es = Ok [(s, hlist_to_slist es)]
         applyArgs (ArgRest s:_) _ = Err "ArgRest can only be at the end of the parameter list."
-        applyArgs (ArgNamed s:args) (e:es) = case applyArgs args es of
-                                                 Ok rest -> Ok ((s, e):rest)
-                                                 Err e -> Err e
+        applyArgs (ArgNamed s:args) (e:es) = do
+            rest <- applyArgs args es
+            return ((s,e):rest)
         applyArgs [] es = Err "Called with wrong number of arguments. Too many given."
         applyArgs args [] = Err "Called with wrong number of arguments. Too few given."
     in
