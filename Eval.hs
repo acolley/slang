@@ -141,7 +141,7 @@ slang_str = Closure [] "" [ArgNamed "x"] (StrCons (Var "x"))
 
 -- helper functions
 all_or_none :: [Expr] -> Env -> Result [Expr]
-all_or_none [] _ = Ok []
+all_or_none [] _ = return []
 all_or_none (e:es) env = do
     applied <- evalenv e env
     rest <- all_or_none es env
@@ -158,15 +158,15 @@ slist_to_hlist (Pair e1 e2) = e1:slist_to_hlist e2
 
 -- convert an expression value to a string
 to_string :: Expr -> Result Expr
-to_string Unit = Ok (Str "nil")
-to_string (Number i) = Ok (Str (show i))
-to_string (Str s) = Ok (Str s)
-to_string (Boolean b) = Ok (Str (if b then "#t" else "#f"))
-to_string (Fun _ _ _) = Ok (Str "fn")
-to_string (Closure _ _ _ _) = Ok (Str "fn")
+to_string Unit = return (Str "nil")
+to_string (Number i) = return (Str (show i))
+to_string (Str s) = return (Str s)
+to_string (Boolean b) = return (Str (if b then "#t" else "#f"))
+to_string (Fun _ _ _) = return (Str "fn")
+to_string (Closure _ _ _ _) = return (Str "fn")
 to_string (Pair v1 v2) = 
     case (to_string v1, to_string v2) of
-        (Ok (Str s1), Ok (Str s2)) -> Ok (Str ("(" ++ s1 ++ "," ++ s2 ++ ")"))
+        (Ok (Str s1), Ok (Str s2)) -> return (Str ("(" ++ s1 ++ "," ++ s2 ++ ")"))
         (Err e, _) -> Err e
         (_, Err e) -> Err e
 to_string _ = Err "Cannot convert expression to string"
@@ -180,128 +180,126 @@ envlookup _ []   = Nothing
 envlookup s ((v, e):xs) = if s == v then Just e else (envlookup s xs)
 
 evalenv :: Expr -> Env -> Result Expr
-evalenv Unit _ = Ok Unit
-evalenv (Number i) _  = Ok $ Number i
-evalenv (Chr c) _ = Ok $ Chr c
-evalenv (Str s) _ = Ok $ Str s
-evalenv (Boolean b) _ = Ok $ Boolean b
-evalenv (Fun name args body) env = Ok $ Closure env name args body
-evalenv (Closure env name args body) _ = Ok $ Closure env name args body
+evalenv Unit _ = return Unit
+evalenv (Number i) _  = return $ Number i
+evalenv (Chr c) _ = return $ Chr c
+evalenv (Str s) _ = return $ Str s
+evalenv (Boolean b) _ = return $ Boolean b
+evalenv (Fun name args body) env = return $ Closure env name args body
+evalenv (Closure env name args body) _ = return $ Closure env name args body
 
 evalenv (Pair e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
-        (Ok v1, Ok v2) -> Ok $ Pair v1 v2
+        (Ok v1, Ok v2) -> return $ Pair v1 v2
         (Err s, _) -> Err s
         (_, Err s) -> Err s
 
 evalenv (IsPair e) env =
     case evalenv e env of
-        Ok (Pair _ _) -> Ok $ Boolean True
-        Ok _ -> Ok $ Boolean False
+        Ok (Pair _ _) -> return $ Boolean True
+        Ok _ -> return $ Boolean False
         Err s -> Err s
 
 evalenv (Fst e) env =
     case evalenv e env of
-        Ok (Pair e1 _) -> Ok e1
+        Ok (Pair e1 _) -> return e1
         Err s -> Err s
         _ -> Err "Fst got something that isn't a Pair"
 
 evalenv (Snd e) env =
     case evalenv e env of
-        Ok (Pair _ e2) -> Ok e2
+        Ok (Pair _ e2) -> return e2
         Err s -> Err s
         _ -> Err "Snd got something that isn't a Pair"
 
 evalenv (Add e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
-        (Ok (Number v1), Ok (Number v2)) -> Ok $ Number (v1 + v2)
+        (Ok (Number v1), Ok (Number v2)) -> return $ Number (v1 + v2)
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         _ -> Err "Non-Number used in Add"
 
 evalenv (Sub e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
-        (Ok (Number v1), Ok (Number v2)) -> Ok $ Number (v1 - v2)
+        (Ok (Number v1), Ok (Number v2)) -> return $ Number (v1 - v2)
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         _ -> Err "Non-Number used in Sub"
 
 evalenv (Mul e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
-        (Ok (Number v1), Ok (Number v2)) -> Ok $ Number (v1 * v2)
+        (Ok (Number v1), Ok (Number v2)) -> return $ Number (v1 * v2)
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         _ -> Err "Non-Number used in Mul"
 
 evalenv (Div e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
-        (Ok (Number v1), Ok (Number v2)) -> Ok $ Number (v1 `div` v2)
+        (Ok (Number v1), Ok (Number v2)) -> return $ Number (v1 `div` v2)
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         _ -> Err "Non-Number used in Div"
 
 evalenv (If e1 e2 e3) env = 
-    case (evalenv e1 env) of
+    case evalenv e1 env of
         Ok (Boolean False) -> evalenv e3 env
         Ok _ -> evalenv e2 env
         Err s -> Err s
 
 evalenv (Var s) env =
-    case (envlookup s env) of
-        Just e -> Ok e
+    case envlookup s env of
+        Just e -> return e
         Nothing -> Err ("Unbound variable name: " ++ s)
 
-evalenv (Let s e1 e2) env =
-    case evalenv e1 env of
-        Ok v -> evalenv e2 ((s, v):env) -- eval e2 in the augmented environment containing 's'
-        Err s -> Err s
+evalenv (Let s e1 e2) env = do
+    v <- evalenv e1 env
+    evalenv e2 ((s, v):env) -- eval e2 in the augmented environment containing 's'
 
 evalenv (IsUnit e) env =
     case evalenv e env of
-        Ok Unit -> Ok (Boolean True)
-        Ok _ -> Ok (Boolean False)
+        Ok Unit -> return (Boolean True)
+        Ok _ -> return (Boolean False)
         Err s -> Err s
 
 evalenv (Gt e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
-        (Ok (Number v1), Ok (Number v2)) -> Ok $ Boolean (v1 > v2)
+        (Ok (Number v1), Ok (Number v2)) -> return $ Boolean (v1 > v2)
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         (_, _) -> Err ("Gt received something that wasn't a Number")
 
 evalenv (Lt e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
-        (Ok (Number v1), Ok (Number v2)) -> Ok $ Boolean (v1 < v2)
+        (Ok (Number v1), Ok (Number v2)) -> return $ Boolean (v1 < v2)
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         (_, _) -> Err ("Lt received something that wasn't a Number")
 
 evalenv (Eq e1 e2) env =
     case (evalenv e1 env, evalenv e2 env) of
-        (Ok (Number v1), Ok (Number v2)) -> Ok $ Boolean (v1 == v2)
+        (Ok (Number v1), Ok (Number v2)) -> return $ Boolean (v1 == v2)
         (Err s, _) -> Err s
         (_, Err s) -> Err s
         (_, _) -> Err ("Eq received something that wasn't a Number")
 
 evalenv (Not e) env =
     case evalenv e env of
-        Ok (Boolean b) -> Ok $ Boolean (not b)
+        Ok (Boolean b) -> return $ Boolean (not b)
         Ok _ -> Err ("not applied to Non-boolean")
         Err s -> Err s
 
 -- convert an expression to a Str expression
-evalenv (StrCons e) env =
-    case evalenv e env of
-        (Ok v) -> to_string v
-        Err s -> Err s
+evalenv (StrCons e) env = do
+    v <- evalenv e env
+    to_string v
 
 evalenv (Call e1 es) env =
     -- TODO: evaluate args /after/ checking whether the number
     -- of expr parameters can be accepted by the called function
     let applyArgs :: [Arg] -> [Expr] -> Result [(String, Expr)]
-        applyArgs [] [] = Ok []
-        applyArgs (ArgRest s:[]) [] = Ok [(s, Unit)]
-        applyArgs (ArgRest s:[]) es = Ok [(s, hlist_to_slist es)]
+        applyArgs [] [] = return []
+        applyArgs (ArgRest s:[]) [] = return [(s, Unit)]
+        applyArgs (ArgRest s:[]) es = return [(s, hlist_to_slist es)]
         applyArgs (ArgRest s:_) _ = Err "ArgRest can only be at the end of the parameter list."
         applyArgs (ArgNamed s:args) (e:es) = do
             rest <- applyArgs args es

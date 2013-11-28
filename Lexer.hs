@@ -30,17 +30,21 @@ isSymbolChar c = isSymbolStart c || isDigit c
 lexStr :: String -> Result (Token, String)
 lexStr str = 
     case splitOn '"' str of
-        Just (pre, post) -> Ok (StrLit pre, (tail post))
+        Just (pre, post) -> return (StrLit pre, tail post)
         Nothing -> Err "Expected closing quote"
 
 lexDigit :: String -> Result (Token, String)
-lexDigit str = Ok (Num ((read (takeWhile isDigit str)) :: Int), dropWhile isDigit str)
+lexDigit str = 
+    case reads str of
+        [(v, rest)] -> return (Num v, rest)
+        _ -> Err "Could not parse Num"
 
 lexSymbol :: String -> Result (Token, String)
-lexSymbol str = Ok (Sym (takeWhile isSymbolChar str), dropWhile isSymbolChar str)
+lexSymbol str = let (sym, rest) = span isSymbolChar str
+                in return (Sym sym, rest)
 
 lexer :: String -> Result [Token]
-lexer [] = Ok []
+lexer [] = return []
 lexer ('(' : str) = (LParn:) <$> lexer str
 lexer (')' : str) = (RParn:) <$> lexer str
 -- lexer ('\'':str) = Quote:lexer str

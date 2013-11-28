@@ -54,14 +54,14 @@ data Expr =
 
 type Env = [(String, Expr)]
 
-peek :: [Token] -> Maybe Token
-peek [] = Nothing
-peek (tok:_) = Just tok
+data ParseState = ParseState {
+  tokens :: [Token]
+  } deriving (Show)
 
 -- parse a cell as a list of data, until reaching an RParn
 parseList :: [Token] -> Result ([Expr], [Token])
 parseList [] = Err "Expected RParn. Received unexpected EOF."
-parseList (RParn:toks) = Ok ([], toks)
+parseList (RParn:toks) = return ([], toks)
 parseList toks = do
     (e, toks1) <- parseExpr toks
     (es, toks2) <- parseList toks1
@@ -72,9 +72,9 @@ parseArgList [] = Err "Expected RParn. Received unexpected EOF"
 parseArgList (Sym sym:RParn:toks) = -- check for special ArgRest token
     case sym of
         ('&':[]) -> Err "'&' cannot be used as a variable name by itself."
-        ('&':rest) -> Ok (ArgRest rest:[], toks)
-        rest -> Ok (ArgNamed rest:[], toks)
-parseArgList (RParn:toks) = Ok ([], toks)
+        ('&':rest) -> return (ArgRest rest:[], toks)
+        rest -> return (ArgNamed rest:[], toks)
+parseArgList (RParn:toks) = return ([], toks)
 parseArgList (Sym sym:toks) = 
     if head sym == '&'
     then Err ("Can only use the var arg form at the end of argument list. In: " ++ (show sym))
@@ -89,7 +89,7 @@ parseFun (LParn:toks) = do
     (body, rest1) <- parseExpr rest
     case rest1 of
         [] -> Err "Expected RParn. Received unexpected EOF"
-        (RParn:rest2) -> Ok (Fun "" args body, rest2) -- consume RParn at end of Fun definition
+        (RParn:rest2) -> return (Fun "" args body, rest2) -- consume RParn at end of Fun definition
         (tok:rest2) -> Err ("Expected RParn. Received: " ++ (show tok))
 parseFun (tok:toks) = Err ("fn expected LParn but received: " ++ (show tok))
 
@@ -97,7 +97,7 @@ parseIf :: [Token] -> Result (Expr, [Token])
 parseIf toks = do
     (args, rest) <- parseList toks
     case args of
-        (e1:e2:e3:[]) -> Ok (If e1 e2 e3, rest)
+        (e1:e2:e3:[]) -> return (If e1 e2 e3, rest)
         _ -> Err ("If expression takes 3 arguments. Received: " ++ (show (length args)))
 
 parseLet :: [Token] -> Result (Expr, [Token])
@@ -107,7 +107,7 @@ parseLet (Sym sym:toks) =
     else do
         (args, rest) <- parseList toks
         case args of
-            (e1:e2:[]) -> Ok (Let sym e1 e2, rest)
+            (e1:e2:[]) -> return (Let sym e1 e2, rest)
             _ -> Err ("Let expression takes 3 arguments. Received: " ++ (show ((length args) + 1)))
 parseLet (tok:_) = Err ("let expected a Symbol. Received: " ++ (show tok))
 parseLet [] = Err "let expected a Symbol. Received unexpected EOF"
@@ -167,9 +167,9 @@ parseCall (tok:_) = Err ("Call expected Symbol, LParn or Var but received: " ++ 
 
 parseExpr :: [Token] -> Result (Expr, [Token])
 parseExpr [] = Err "Expr: Unexpected EOF"
-parseExpr (Num v:toks) = Ok (Number v, toks)
-parseExpr (StrLit s:toks) = Ok (Str s, toks)
-parseExpr (Sym s:toks) = Ok (Var s, toks)
+parseExpr (Num v:toks) = return (Number v, toks)
+parseExpr (StrLit s:toks) = return (Str s, toks)
+parseExpr (Sym s:toks) = return (Var s, toks)
 parseExpr (LParn:toks) = parseCall toks
 
 parse :: [Token] -> Result Expr
