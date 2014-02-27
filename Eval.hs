@@ -66,6 +66,20 @@ slang_len =
             (Number 0)
             (Add (Number 1) (Call (Var "len") [Snd (Var "xs")]))))
 
+slang_min :: Expr
+slang_min =
+    (Closure [] "" [ArgNamed "x", ArgRest "xs"]
+        (If (IsUnit (Var "xs"))
+            (Var "x")
+            (Call slang_foldl [Fun "" [ArgNamed "acc", ArgNamed "y"] (If (Lt (Var "y") (Var "acc")) (Var "y") (Var "acc")), (Var "x"), (Var "xs")])))
+
+slang_max :: Expr
+slang_max =
+    (Closure [] "" [ArgNamed "x", ArgRest "xs"]
+        (If (IsUnit (Var "xs"))
+            (Var "x")
+            (Call slang_foldl [Fun "" [ArgNamed "acc", ArgNamed "y"] (If (Gt (Var "y") (Var "acc")) (Var "y") (Var "acc")), (Var "x"), (Var "xs")])))
+
 -- Built-in functions
 
 slang_fst :: Expr
@@ -320,7 +334,7 @@ evalenv (Call e1 es) env =
         (Ok e, _) -> Err ("Call received something that wasn't a Closure: " ++ show e)
 
 prelude :: Env
-prelude = [("+", slang_add), ("-", slang_sub), ("*", slang_mul), ("/", slang_div), ("=", slang_eq), (">", slang_gt), ("<", slang_lt), ("not", slang_not), ("cons", slang_cons), ("str", slang_str), ("fst", slang_fst), ("snd", slang_snd), ("nil", Unit), ("nil?", slang_isnil),("list", slang_list), ("pair?", slang_ispair), ("list?", slang_islist), ("map", slang_map), ("#t", Boolean True), ("#f", Boolean False), ("foldl", slang_foldl), ("foldr", slang_foldr), ("len", slang_len)]
+prelude = [("+", slang_add), ("-", slang_sub), ("*", slang_mul), ("/", slang_div), ("=", slang_eq), (">", slang_gt), ("<", slang_lt), ("not", slang_not), ("cons", slang_cons), ("str", slang_str), ("fst", slang_fst), ("snd", slang_snd), ("nil", Unit), ("nil?", slang_isnil),("list", slang_list), ("pair?", slang_ispair), ("list?", slang_islist), ("map", slang_map), ("#t", Boolean True), ("#f", Boolean False), ("foldl", slang_foldl), ("foldr", slang_foldr), ("len", slang_len), ("min", slang_min), ("max", slang_max)]
 
 
 eval :: Expr -> Result Expr

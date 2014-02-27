@@ -1,6 +1,9 @@
 module Lexer ( Token(LParn,RParn,Num,StrLit,Sym), lexer ) where
 
 import Control.Applicative
+import Control.Monad.Identity
+import Control.Monad.Error
+import Control.Monad.State.Lazy
 import Data.Char
 import Data.List
 
@@ -14,6 +17,29 @@ data Token =
     | StrLit String
     | Sym String
     deriving (Eq, Show)
+
+--type Lexer a = StateT String (ErrorT String Identity) a
+--type Lexer a = ReaderT String (ErrorT String Identity) a
+--
+--runLexer :: String -> Lexer a -> Either String a
+--runLexer str l = runIdentity $ runErrorT $ runReaderT l str
+--
+--runLexer :: String -> Lexer a -> Either String (a, String)
+--runLexer st l = runIdentity $ runErrorT $ runStateT l st
+
+data LexerState = LexerState {
+    lexLine :: Int,
+    lexColumn :: Int
+}
+
+type Lexer a = StateT LexerState (ErrorT String Identity) a
+
+-- note: this calls evalStateT instead of runStateT in order
+-- to throw away the unneeded state at the end
+-- to propagate line numbers and such through the system a Token
+-- should also store this information against itself
+runLexer :: LexerState -> Lexer a -> Either String a
+runLexer st l = runIdentity $ runErrorT $ evalStateT l st
 
 isComment :: Char -> Bool
 isComment c = c == ';'
